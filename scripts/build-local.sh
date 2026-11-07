@@ -7,14 +7,14 @@ OUT=dist
 mkdir -p "$OUT"
 
 SRC=(book/src/00-preface.md)
-for n in $(seq -w 1 31); do
+for n in $(seq -w 1 35); do
   f=$(ls book/src/${n}-*.md 2>/dev/null | head -1)
   [ -n "$f" ] && SRC+=("$f") || echo "  ⚠️ 跳过缺失章节 ${n}-*.md（草稿尚未合并）"
 done
 # 附录 A1/A2 在版本信息之前
 for f in book/src/A1-*.md book/src/A2-*.md; do [ -f "$f" ] && SRC+=("$f"); done
 f=$(ls book/src/99-*.md 2>/dev/null | head -1); [ -n "$f" ] && SRC+=("$f")
-echo "  章节数: ${#SRC[@]}（全书 31 章 + 前言 + 附录 + 版本信息）"
+echo "  章节数: ${#SRC[@]}（全书 35 章 + 前言 + 附录 + 版本信息）"
 echo "  [0/4] 刷新附录 A1（RFC 清单随正文自动更新）"
 python3 scripts/gen-rfc-index.py || true
 

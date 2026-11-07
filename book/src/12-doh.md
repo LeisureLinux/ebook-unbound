@@ -385,6 +385,22 @@ find /var/log/nginx -name 'doh.access.log*' -mtime +30 -print
 | DDR | `_dns.resolver.arpa.` NODATA | `dig _dns.resolver.arpa. SVCB` |
 | 日志 | token 脱敏、保留期执行 | `grep -c` + `find -mtime` |
 
+## 别把 DoH 和 HTTPDNS 混为一谈
+
+中文语境里的「HTTPDNS」通常指**厂商私有的 HTTP 查询接口**，而 [RFC 8484] 的 DoH 是 IETF 标准。两者都跑在 443 上、看起来都像 Web 流量，但报文格式、客户端形态与信任模型都不同：
+
+| | DoH [RFC 8484] | HTTPDNS（厂商 API） |
+|---|---|---|
+| 性质 | IETF 标准 | 无 RFC，厂商自定义 |
+| 载荷 | DNS wire format（`application/dns-message`），GET 用 base64url 的 `dns` 变量、POST 放 body | 多为 JSON（`?name=…&type=A` → `{"Answer":[…]}`） |
+| 客户端 | 系统存根 / 浏览器 / 支持 DoH 的解析器 | App 内嵌 SDK，**绕过系统解析器** |
+| 服务端 | 本章的 dnsdist + nginx 链路 | 厂商自有 HTTP 端点，后端仍是递归 |
+| 配置 | URI Template；RFC 8484 明确禁止因「发现」就换 URI | 硬编码在 SDK |
+| 目的 | 链路隐私、防 on-path 干扰 | 绕过运营商 LocalDNS 劫持、精确调度 |
+| 代价 | 端点运营者看到全部查询 | **绕过本机 / 内网 DNS 策略**（第 13 章「客户端绕过」） |
+
+**怎么验证**：抓一次请求看 `Content-Type` 与 body —— `application/dns-message` 是 DoH，`application/json` 且带 `name`/`type` 参数就是 HTTPDNS 形态。同一家 resolver 也可能同时提供两种接口，那是一个服务的两种外观，不是两种协议。本书只实现有标准可依的 DoH；HTTPDNS 属架构选择，展开见第 32 章。
+
 ## 本章要点
 
 - Unbound 有下游 DoH（1.12.0 起，需 `libnghttp2`、只支持 HTTP/2、只认 `application/dns-message`），但不适合单独做公网前端：**用 dnsdist 做 DNS 感知的 DoH 前端与池分流，用 nginx 做与 Web 共 443 的反代与认证，Unbound 只监听回环做递归验证**。
