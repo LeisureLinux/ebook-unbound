@@ -11,7 +11,7 @@
 <link rel="canonical" href="https://leisurelinux.github.io/ebook-unbound/">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Unbound DNS 服务加固指南">
-<meta property="og:description" content="从递归解析器到加密、私有、IPv6-ready 的 DNS 基础设施。五篇二十二章，原创实战经验。">
+<meta property="og:description" content="从递归解析器到加密、私有、IPv6-ready 的 DNS 基础设施。五篇二十四章，原创实战经验。">
 <meta property="og:url" content="https://leisurelinux.github.io/ebook-unbound/">
 <meta property="og:locale" content="zh_CN">
 <meta name="twitter:card" content="summary_large_image">
@@ -66,7 +66,7 @@ a.inline{color:var(--accent)}
   <h1>Unbound DNS 服务加固指南</h1>
   <p class="sub">Unbound DNS Hardening — 从递归解析器到加密、私有、IPv6-ready 的 DNS 基础设施</p>
   <div class="badges">
-    <span>CC BY-SA 4.0</span><span>中文原创</span><span>五篇二十二章</span>
+    <span>CC BY-SA 4.0</span><span>中文原创</span><span>五篇二十四章</span>
     <span>NIST SP 800-81r3</span><span>IPv6 / Kubernetes</span>
   </div>
 
@@ -104,6 +104,14 @@ local-zone: "_dns.resolver.arpa." always_nodata</code></pre>
   <p>完整解释、验证命令与回滚点见第三篇。也可用
   <a class="inline" href="https://github.com/LeisureLinux/ebook-unbound/blob/main/scripts/unbound-audit.sh">scripts/unbound-audit.sh</a>
   静态检查一份 <code>unbound.conf</code>。</p>
+
+  <h2>新增两章</h2>
+  <ul>
+    <li>第 23 章 <strong>WPAD 与 PAC</strong>：1999 年过期的 IETF 草案、DHCP option 252、
+        DNS devolution 的名称劫持史、PAC 与 WPAD 的分层，以及为什么透明代理架构不该依赖它。</li>
+    <li>第 24 章 <strong>Adhole</strong>：HOSTS / Adblock Plus / 原生 local-zone 等四类上游格式的转换，
+        <code>local-zone</code> 与 <code>forward-zone</code> 的优先级，58 万条大表的原子生成与误伤排查。</li>
+  </ul>
 
   <h2>许可</h2>
   <p>正文以 <a class="inline" href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a> 发布，
