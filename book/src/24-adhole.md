@@ -4,7 +4,7 @@
 
 实验环境仍是一台家庭网关 + 一台境外云主机，以下为教学用示例地址：IPv4 取 `192.0.2.0/24`、`198.51.100.0/24`、`203.0.113.0/24`（[RFC 5737]），IPv6 取 `2001:db8::/32`，域名统一用 `example.net` / `example.org`，内网写通用 `192.168.68.0/24` 与 ULA `fd00::/64`，主机名 `gw-01` / `edge-01`，凭据一律 `<TOKEN>`。本章只做过滤表：第 9 章最小暴露面、第 7 章可观测性、第 12 章 DoH 端点分工都是既成前提，不在这里重贴它们的配置。
 
-## 24.1 能力边界：DNS 层只能表达"名字"
+## 能力边界：DNS 层只能表达"名字"
 
 浏览器扩展里的 Adblock Plus / uBlock 规则看见的是完整 URL，Unbound 看见的只有 QNAME。这条差异不是"少几个字段"，而是**一整类规则在 DNS 层没有对应物**。写转换器之前必须把这类规则判为跳过，而不是"尽量近似"——近似的后果是把不该挡的域名挡了，或把该挡的域名放行。
 
@@ -21,7 +21,7 @@
 
 `@@` 尤其容易出错：它在浏览器规则里表示"这条不挡"，而 DNS 层没有"按请求上下文放行"的概念。把 `@@` 后的域名收进表，等于把白名单写反了。本项目单独维护 `unblock_domains.txt`，**在最终去重前应用**：先精确删除，再合并去重，这样白名单既不会被 cn/noncn 两份表重新拼回来，也不会因父域通配而漏掉。一句话记住边界：过滤表决定"这个名字要不要给答案"，不决定"这次请求从哪个页面来、URL 里有什么、页面上哪块元素要隐藏"。
 
-## 24.2 六类上游格式逐条拆
+## 六类上游格式逐条拆
 
 所有格式最终都归一到同一形态（选 `always_null` 而非 `always_nxdomain`，是让客户端拿到 `0.0.0.0` / `::` 的空答而不是 NXDOMAIN；NXDOMAIN 常引发客户端重试、换搜索域甚至换解析器，语义见 24.6.2）：
 
@@ -31,7 +31,7 @@ local-zone: "ads.example.net." always_null
 
 **为什么这么设**：`include` 展开后等价于文本原样插入，表文件里只能出现 `server:` 段内合法的语句；统一 FQDN 尾点与统一类型，才能用 `unbound-control list_local_zones` 直接核对命中了哪条。**怎么验证**：`unbound-checkconf /etc/unbound/unbound.conf && unbound-control list_local_zones | grep 'ads.example.net'`。**失败模式 / 回滚点**：混用 `always_nxdomain` / `always_refuse` 会让一张表出现三种应答语义，排障时无法用一条 `dig` 判断是谁挡的；回滚到上一版表并 reload 即可。
 
-### 24.2.1 HOSTS 格式
+### HOSTS 格式
 
 ```text
 0.0.0.0 ads.example.net
@@ -41,7 +41,7 @@ local-zone: "ads.example.net." always_null
 
 可提取信息：每行右侧第一个域名 token（一行多个域名则逐个取出）。丢弃项：左侧 IP（`0.0.0.0` 与 `127.0.0.1` 都只是 HOSTS 的本地重定向占位）、`#` 之后的注释。`127.0.0.1 domain` **不能**直译成指向回环的 `local-data`：那会让客户端连自己的 `127.0.0.1`，把"连接被拒绝"伪装成"服务存在"。输出：`local-zone: "ads.example.net." always_null`、`local-zone: "tracker.example.org." always_null`。
 
-### 24.2.2 纯域名 TXT
+### 纯域名 TXT
 
 ```text
 ads.example.net
@@ -51,7 +51,7 @@ tracker.example.org
 
 可提取信息：整行本身。丢弃项：`#` / `!` 开头的注释、空行、行尾空白、不含点的裸标签（如 `localhost`）。这是最干净的一类，也是转换器应把其他所有格式**归一化到的目标形态**：先变成"一行一个域名"，再走同一段校验与输出。
 
-### 24.2.3 Adblock Plus / uBlock 格式
+### Adblock Plus / uBlock 格式
 
 ```text
 ||ads.example.net^
@@ -72,7 +72,7 @@ tracker.example.org
 
 "跳过整条"是关键：不要把 `cdn.example.net` 从带路径的规则里抠出来收进表，那会把整个 CDN 域挡掉；`$domain=` 的规则若只取左侧域名，就变成"对所有来源页都挡"，比原规则严格得多。
 
-### 24.2.4 Unbound 原生格式
+### Unbound 原生格式
 
 ```text
 local-zone: "ads.example.net." always_null
@@ -81,7 +81,7 @@ local-zone: "tracker.example.org." always_nxdomain
 
 可提取信息：引号里的区名。丢弃项：原类型（统一改写为 `always_null`）、`local-zone:` 关键字、多余空格。上游已给 `always_null` 也要**重新过一遍校验**：这类清单常混着别类型，混用会破坏单一应答语义。改写同时强制补齐 FQDN 尾点，避免 `example.net` 与 `example.net.` 在树里被当成两个东西。
 
-### 24.2.5 威胁情报 TXT
+### 威胁情报 TXT
 
 ```text
 # 恶意 C2 Indicator，教学示例
@@ -92,15 +92,15 @@ c2.example.org
 
 可提取信息：URL 里的主机名。丢弃项：`http://` / `https://` 前缀、尾 `/` 及其后的路径、端口、查询串、纯 IP 行、注释。输出：`local-zone: "c2.example.org." always_null`。纯 IP 的 IOC 属于防火墙 / 代理层，不属于 DNS 过滤表：拼一条 `local-zone: "198.51.100.7." always_null` 是个永远查不到的名字，纯浪费表项。去协议后要先去尾 `/` 再取主机名，顺序反了会把斜杠留在域名里。
 
-### 24.2.6 OISD 的 unbound 输出
+### OISD 的 unbound 输出
 
 OISD 等项目直接提供 unbound 格式清单，形态与 24.2.4 相同。可提取信息：引号内区名；丢弃项：文件头 `#` 注释与元数据行、非 `local-zone` 的杂项行。走同一个解析器即可，但**单独记一个来源标签**——`domain-state.tsv` 的 `category` 要能区分"这条来自哪个上游"，回滚时才能只撤一份清单。具体上游 URL 与清单内容会变动，教学脚本不依赖任何真实清单地址；接入时把下载好的本地文件放进 `sources/` 即可。
 
-### 24.2.7 归一化六步
+### 归一化六步
 
 所有格式最后汇到这六步，顺序不能随意交换：① **去 `||` 与 `^`**（只处理 ABP 边界符号）；② **剥离 `*.`**（`*.tracker.example.org` → `tracker.example.org`，这是**降级为父域**，会覆盖其下所有子域；若上游本意只匹配一级子域，DNS 层无法精确表达，只能接受更宽的拦截）；③ **去 `http(s)://`**；④ **去尾 `/`**（先截断路径，只剩主机名）；⑤ **去 `www.`**（减少重复表项，但这是可逆性最弱的一步——`www.` 与裸域若由不同运营方托管，合并会让裸域也被挡，必须能从白名单回滚）；⑥ **小写化、去尾点、只保留含点且长度 > 2 的整域名**（每个标签只含字母数字与连字符、不以连字符开头/结尾，通不过的行计入跳过计数而不是静默丢）。`"含点"` 排除 `localhost` 一类裸标签，`"长度 > 2"` 排除 `a.b` 这类短串；两者只是粗筛，转换器不判断公共后缀，因为那需要额外的后缀列表，不在本书已核实范围内。
 
-### 24.2.8 源格式 → 可提取信息 → 丢弃项 → 输出行 对照表
+### 源格式 → 可提取信息 → 丢弃项 → 输出行 对照表
 
 | 源格式 | 可提取信息 | 丢弃项 | 输出行 |
 |---|---|---|---|
@@ -114,7 +114,7 @@ OISD 等项目直接提供 unbound 格式清单，形态与 24.2.4 相同。可�
 | 威胁情报 URL | URL 中的主机名 | 协议、路径、端口、IP 行 | `local-zone: "c2.example.org." always_null` |
 | OISD unbound 输出 | 引号内区名 | 文件头注释、非 `local-zone` 行 | `local-zone: "..." always_null` |
 
-## 24.3 可复制的转换骨架
+## 可复制的转换骨架
 
 教学骨架：只读本地 `sources/`，不访问网络，仅依赖 Python 标准库，输出归一化域名列表。
 
@@ -193,7 +193,7 @@ sed -n 's/^local-zone:[[:space:]]*"\([^"]*\)"[[:space:]].*/local-zone: "\1." alw
 
 **为什么这么设**：`\([^"]*\)` 捕获引号内区名，输出统一补 FQDN 尾点，第二道 `sed` 修掉原本已带点时的双点，`sort -u` 是重复定义的最后防线（24.6.5）。**怎么验证**：`grep -c 'always_null' /tmp/adhole-normalized.conf ; grep -vc 'always_null' /tmp/adhole-normalized.conf` —— 第二条应为 0。**失败模式 / 回滚点**：上游若用单引号或不带引号的区名会静默丢行、计数却不报错；输出只在 `/tmp`，`install` 前不影响运行中配置，正式流程以 Python 骨架为准。
 
-## 24.4 输出三份表与 domain-state.tsv
+## 输出三份表与 domain-state.tsv
 
 | 文件 | 规模 | 内容 |
 |---|---|---|
@@ -218,7 +218,7 @@ tracker.example.org	cn	2026-11-07	2026-11-07	198.51.100.9
 
 **怎么验证**：`unbound-checkconf /etc/unbound/unbound.conf && grep -c '^local-zone:' /etc/unbound/adhole-full.conf`（应接近 58 万），再用 `unbound-control list_local_zones | grep -c always_null` 核对生效条目数。**失败模式 / 回滚点**：`domain-state.tsv` 是生成物，每次生成保留带日期副本（24.11），回退到上一版即可恢复分类。
 
-## 24.5 分类靠解析 A 记录，不靠域名后缀猜
+## 分类靠解析 A 记录，不靠域名后缀猜
 
 `category` 的判定流程是：**对每个候选域名做一次 A 记录解析，拿到应答里的 IP，再对照本地 `geoip-cn.json` 判断该地址是否属于 cn 网段**。命中则 `cn`，否则 `noncn`；解析失败（NXDOMAIN / SERVFAIL / 超时）的条目记入单独状态，下一轮 `last_checked` 再试，不要凭后缀猜一个分类塞进去。
 
@@ -228,11 +228,11 @@ tracker.example.org	cn	2026-11-07	2026-11-07	198.51.100.9
 
 **怎么验证**：`awk -F'\t' 'NR>1 && ($5 == "" || $4 == "") {print}' domain-state.tsv | head` 应无输出；再抽检若干 `cn` 条目的 `ip` 是否落在 `geoip-cn.json` 的 cn 段。**失败模式 / 回滚点**：上游临时 NXDOMAIN 会把域名误判成"无分类"，若转换器直接丢弃就产生静默漏放；正确做法是保留条目、标记待复查、本轮沿用上一次 `category`。回滚：回退上一版 `domain-state.tsv`。
 
-## 24.6 `local-zone` 与 `forward-zone` 的优先级（本章核心）
+## `local-zone` 与 `forward-zone` 的优先级（本章核心）
 
 一个看似简单、最容易配错的问题：**被写进过滤表的名字，会不会先被送到上游 `forward-zone`？** 不会。
 
-### 24.6.1 查询处理顺序
+### 查询处理顺序
 
 ```text
 ① 收包 → access-control（谁可以问；最具体网段匹配，无匹配即 refuse）
@@ -248,7 +248,7 @@ tracker.example.org	cn	2026-11-07	2026-11-07	198.51.100.9
 
 结论：**`local-zone` 匹配发生在递归与转发之前**。`always_null` 在 ② 命中后于 ③ 直接返回 `0.0.0.0` / `::`，查询根本不会抵达 ⑥ 的 `forward-zone`。过滤表不是一个"应答回来后再改写"的钩子，而是查询路径上的提前出口，所以它能零上游查询地生效。由此得分工：**`forward-zone` 只对未被本地区接管的名字生效**。写 `forward-zone: "."` 把一切交给单一上游（第 5 章的单上游约束）并不意味着过滤表失效；恰恰相反，命中表的名字在到达这个 `forward-zone` 之前就被终结了。反过来，既没进表、又被 `transparent` 类区放过的名字才会真正走到上游。
 
-### 24.6.2 `always_*` 与 `static` / `transparent` 的语义表
+### `always_*` 与 `static` / `transparent` 的语义表
 
 `local-zone` 第二个参数决定"命中后若无 `local-data` 精确匹配，给什么应答"：
 
@@ -266,27 +266,27 @@ tracker.example.org	cn	2026-11-07	2026-11-07	198.51.100.9
 
 最后两行的差异在双栈环境里是实打实的：用 `transparent` 给 `gw.example.net.` 写了 A 记录，客户端问 AAAA 会收到 NODATA；用 `typetransparent` 则正常向上解析 AAAA。`always_*` 前缀的含义是**忽略 `local-data`**；手册对 `always_null` 的原文是"对区内每个名字总返回 `0.0.0.0` 或 `::0`，类似带零数据的 redirect，忽略区里的 local data，用于某些屏蔽清单"——这正是本章选它作表项类型的依据。
 
-### 24.6.3 `local-data` 与 `local-zone` 配合
+### `local-data` 与 `local-zone` 配合
 
 `local-data` 提供精确的资源记录，`local-zone` 决定"没精确匹配时怎么办"。两条边界：若只写 `local-data` 而不写覆盖它的 `local-zone`，手册说明 Unbound 会自动创建 `transparent` 区，所以**"没写区"不等于"没接管"**，而是以最宽松的类型接管；`always_null` / `always_nodata` / `always_refuse` 等忽略 local data，在这些区里配 `local-data` 是无效的。想让某个被屏蔽域返回特定地址，应改用 `redirect` 或 `static` + `local-data` 并把它从过滤表移除。常见需求"挡掉广告域但 `sso.example.net` 要能解析"的正确做法，不是在 `always_null` 区里塞 `local-data`，而是把该域放进 `unblock_domains.txt`（24.1），或给父域用 `typetransparent` 配例外；前者更简单可审计，是本项目默认路径。
 
-### 24.6.4 `access-control` 与 `local-zone` 的先后
+### `access-control` 与 `local-zone` 的先后
 
 `access-control` 在 ①、`local-zone` 在 ②，因此**访问控制先于本地接管**：被 `deny` / `refuse` 的源地址连本地应答都拿不到，谈不上"命中过滤表"。这解释了一个常见疑惑——从没放行的网段 `dig` 一个被屏蔽域，看到的是 REFUSED 而不是 `0.0.0.0`，别据此判断过滤表没生效。手册给出的 `deny_non_local` / `refuse_non_local` 只允许查询权威 `local-data`、不给递归，适合"只想让某网段拿到本地静态应答"；普通 `allow` 对非递归查询也允许访问 `local-data`。`access-control` 按**最具体网段**匹配且与语句顺序无关，这与 `include` 顺序的规则正相反，两者不要混记。完整基线见第 9 章。
 
-### 24.6.5 `include` 顺序与重复定义
+### `include` 顺序与重复定义
 
 `include:` 可出现在配置任意位置，语义是"把被包含文件的文本像复制粘贴一样插到这一点"，也支持通配符。三条工程结论：① **段上下文会延续**——`include` 写在 `server:` 段中间，表文件里的裸 `local-zone:` 行才属于 `server:`；写在 `forward-zone:` 段之后会被解析进错误的段。稳妥做法是用 `include-toplevel:`（手册说明它会先关闭当前段、强制被包含文件自带段声明），或确保 `include` 位于 `server:` 段内。② **`chroot` 下路径必须可见**，相对路径依赖启动目录 / `directory:` 设置，配合 AppArmor 还要求落在白名单内（24.9）；第 7 章已给过"三处同时满足"的约束，这里不重复。③ **同名区重复定义不应依赖"谁生效"**：手册对 `unbound-control local_zone` 的说明是"若该区已存在，类型被改为给定参数"，即后写入者覆盖先前类型；但把 58 万行表的正确性寄托在覆盖顺序上是脆弱的，`unbound-checkconf` 不报重复、日志也不一定显眼。正确做法是生成器里用集合去重、`sort -u` 收尾，保证每份表内每个区名只出现一次；跨文件重复（例如 `adhole-full.conf` 与手工例外文件同时定义同一域）用 `list_local_zones` 核对实际生效类型。一句话：include 顺序决定"哪些语句在哪个段、哪份表先被读到"，但**业务上的覆盖关系由生成器保证，别靠配置顺序碰运气**。
 
-### 24.6.6 `auth-zone` 与 `local-zone` 的边界
+### `auth-zone` 与 `local-zone` 的边界
 
 `auth-zone` 是从文件加载的权威区副本，两个可同时开启的阶段：`for-downstream: yes`（默认）在 local-zone 之后、cache 之前，让 Unbound 像权威服务器一样直接回答下游；`for-upstream: yes`（默认）在缓存查找之后、出网之前，供递归过程查本地副本。它与 `local-zone` 位置相邻但职责不同：**`local-zone` 是策略（该不该答、答什么），`auth-zone` 是数据（一整份区文件内容）**。手册另说明：需要带引荐、通配、CNAME/DNAME、DNSSEC 权威服务的复杂权威数据，应当用 `stub-zone` 而不是 `local-zone`。所以第 6 章的本地根区镜像用 `auth-zone`，本章的过滤表只承担"按名字给空答"，别因为"都叫 zone"就混用。`forward-zone` 与 `auth-zone` 的区别也清楚：前者把查询交给另一台**递归**服务器，后者提供本地区文件内容；二者都在 ⑥ 附近参与，而 `local-zone` 在 ② 就可能终结查询。
 
-### 24.6.7 RPZ 与 `local-zone` 的区别
+### RPZ 与 `local-zone` 的区别
 
 RPZ（Response Policy Zone，响应策略区）把策略写成标准 DNS 区文件格式，可通过区传送从外部来源加载，不同解析器实现可共用；`local-zone` 是 Unbound 专有语法。官方手册给出的次序是 **RPZ QNAME 触发器在任意 `local-zone` 之后、任意 `auth-zone` 之前应用**，且 RPZ 依赖 `respip` 模块、需在 `module-config` 中加载。因此同时配了二者的实例里 `local-zone` 先判，被 `always_null` 终结的名字不会再经过 RPZ。RPZ 的优势是标准化、可传送、能按应答 IP / 客户端 IP 等更多触发器做策略，代价是多一层模块与区文件管理；本项目选 `local-zone` 大表，理由是生成链路全在本地、可原子替换、可按来源灰度。触发器精确匹配语义、动作类型与加载顺序请以官方手册 RPZ 章节为准，本章不展开。
 
-### 24.6.8 用 `dig` 证明"命中 local-zone 时上游零查询"
+### 用 `dig` 证明"命中 local-zone 时上游零查询"
 
 ```bash
 # ① 表是否已加载
@@ -307,7 +307,7 @@ unbound-control stats_noreset | grep -E 'total.num.cachemiss|total.num.queries'
 
 补充定性验证：在受控上游侧临时观察这几个名字的查询是否出现；dnstap 的采集与保留期配置在第 7 章，本章只把它当**证据来源**，不重复其配置细节，本书统一的全量查询日志保留 30 天并配到期删除在这里同样适用。
 
-## 24.7 原子生成：临时文件 + 校验 + `install`
+## 原子生成：临时文件 + 校验 + `install`
 
 58 万行的表绝不能"边下载边覆盖正在被读的文件"。完整性校验的最低要求是：**最后一行必须是合法的 `local-zone` 行**。这一条能抓住绝大多数"下载中断 / 磁盘写满 / 管道被 `head` 截断"的不完整表——截断在行边界时 `unbound-checkconf` 语法仍合法，却会静默漏放大批域名。
 
@@ -335,7 +335,7 @@ echo "installed $(grep -c '^local-zone:' "$OUT") zones"
 
 **为什么这么设**：`mktemp` 把临时文件放在同一文件系统，`install` 的落位才可能是原子替换；`set -euo pipefail` 让任何一步失败都中止，绝不把半成品推到 `OUT`；`trap` 保证异常退出时清掉临时文件。`tail -n 1 | grep -Eq` 是本章刻意要求的那道校验，它验证的是"文件被完整写完"这个 `unbound-checkconf` 不负责的性质；`install -m 0644 -o root -g root` 明确权限与属主，配合 24.8 的 AppArmor 白名单。**怎么验证**：`ls -l "$OUT" ; tail -n 1 "$OUT" ; unbound-control list_local_zones | grep -c always_null`，三处形态与数量应一致；再跑 24.6.8 的 `dig` 组。**失败模式 / 回滚点**：`wc -l` 的 500000 是本项目 58 万条口径的宽松阈值，上游规模变化时会误报"表变小"，此时应人工确认而不是直接放宽；`unbound-checkconf` 只查语法、不查重复定义与语义。回滚：保留上一版 `adhole-full.conf`（24.11），`install` 回退旧文件后 reload；手册列出 `interface` 等少数选项 reload 不生效，`local-zone` 本身可 reload，但混在其他变更里时 restart 更稳。
 
-## 24.8 大表的内存代价、加载时间与 AppArmor
+## 大表的内存代价、加载时间与 AppArmor
 
 `local-zone` 大表**全量常驻内存**：Unbound 把区名组织成一棵树，每个节点要存标签、类型、可选 tag / local-data 指针，再加分配器开销。磁盘上约 28MB，进内存后远不止 28MB——一行约五十字节的文本变成结构体、树指针与对齐填充，量级通常按数倍估算；具体数值取决于版本、编译选项与是否启用 tag/view，**不要照搬任何固定倍数，以本机基线为准**。三个可观测代价：启动 / reload 时解析 58 万行建树，耗时明显长于小配置；手册说明 `fast_reload` 期间需**约两倍**配置内存（新旧两份并存），峰值可能触发 OOM；稳态下与缓存争内存，缓存尺寸需相应下调。
 
@@ -343,7 +343,7 @@ echo "installed $(grep -c '^local-zone:' "$OUT") zones"
 
 第 9 章已把 AppArmor 基线讲透：**profile 只允许 Unbound 读 `/etc/unbound/**`**，把表文件放到 `/var/lib/unbound/` 或 `/tmp` 会被 DENIED，而 `unbound-checkconf` 照样通过——它不检查内核的强制访问控制判决。本章补三条：临时文件必须在 `/etc/unbound/` 下（`mktemp /etc/unbound/.adhole-full.XXXXXX`）；`install` 后属主 / 权限要与 profile 一致，profile 允许的读路径与 Unix 权限是两道独立的门；排查顺序固定为 `unbound-checkconf` → `journalctl -k | grep DENIED` → 文件路径 → include 顺序，不要先怀疑上游或表内容。**怎么验证**：`unbound-checkconf /etc/unbound/unbound.conf ; journalctl -k --since '10 min ago' | grep -i denied || true ; aa-status | grep unbound` —— 语法通过、无 DENIED、进程处于 enforce 模式，三者齐备才算加载成功。**失败模式 / 回滚点**：reload 后 `list_local_zones` 为空且日志无报错，第一嫌疑是 DENIED 被 audit 级别吞掉，第二嫌疑是 `include` 写在错误的段里（24.6.5）；把表移回 `/etc/unbound/**` 并重启，不要为此放宽 profile，那等于把第 9 章的最小暴露面拆了。
 
-## 24.9 定时同步到另一台解析器
+## 定时同步到另一台解析器
 
 两台解析器（家庭网关 `gw-01` 与云主机 `edge-01`）用同一张表，靠定时同步保证口径一致。
 
@@ -366,7 +366,7 @@ ssh edge-01 'tail -n 1 /etc/unbound/.adhole-full.incoming | grep -Eq "^local-zon
 
 **为什么这么设**：**被覆盖的 `include` 路径必须先讲清**——目标端主配置里 `include: "/etc/unbound/adhole-full.conf"` 是唯一入口，`scp` 先落到 `.adhole-full.incoming` 暂存，校验通过后由 `install` 覆盖的正是这个路径；`edge-01` 上不要另有一份手工维护的同名文件，也不要让 `include` 用通配符把备份（`adhole-full.conf.bak.*`）一起读进来，否则出现 24.6.5 的重复定义。同步的是**生成物**而不是 `sources/`，口径才不会因两端脚本版本不同而漂移；`domain-state.tsv` 一并同步，让目标端具备同样的误伤排查线索。目标端先在暂存路径上查最后一行，再 `install` 覆盖 `include` 指向的目标、固定权限，`unbound-checkconf` 验语法，最后 **restart**（`fast_reload` 大表时的双倍内存峰值见 24.8，同步窗口宁可短时重启）；顺序反了会留下属主错误或半截文件，且 `restart` 才能让新表稳定生效。凭据用 `<TOKEN>` 或等价密钥认证，不写明文口令；定时用 systemd timer 或 cron 均可，间隔与上游清单更新节奏一致。**怎么验证**：`ssh edge-01 'unbound-control list_local_zones | grep -c always_null' ; unbound-control list_local_zones | grep -c always_null` 两端计数应一致，再各自跑 24.6.8 的被屏蔽名字，都应答 `0.0.0.0`。**失败模式 / 回滚点**：网络中断会让 `scp` 写出半截文件，所以先推暂存路径、校验通过后才 `install` 到被 `include` 的路径；两端版本不一致时先让目标端回退上一版表（24.11），不要在线修补。回滚：目标端 `install` 旧备份并 restart；若只有一端失败，暂停同步任务，避免下一轮把好端也覆盖。
 
-## 24.10 误伤排查、白名单回滚点与保留期
+## 误伤排查、白名单回滚点与保留期
 
 过滤表最常见的生产事故不是"没挡住"，而是"挡错了"。排查四步：① **`dig` 定性**——`dig @192.0.2.1 sso.example.net A +short` 若返回 `0.0.0.0`，先确认是表在起作用而不是源站真挂了，再用 `unbound-control list_local_zones | grep sso.example.net` 查是精确区还是父域区命中；② **dnstap 找证据**——看这次查询的 QNAME、类型、客户端地址与应答，确认哪一层给的空答，采集配置与 30 天保留期在第 7 章，本章只把它当查询流证据来源、不重复配置；③ **定位来源**——`grep sso.example.net domain-state.tsv` 看 `category` 与 `ip`，再回查 `sources/` 里是哪份清单引入了它（24.2.6 的来源标签在这里派上用场）；④ **白名单回滚**——把域名加进 `unblock_domains.txt`，重跑 24.3 生成器与 24.7 原子落位。因为白名单在**最终去重前**应用，重生成后它会从三份表里一起消失，不会被 cn/noncn 合并拼回来。
 
@@ -379,7 +379,7 @@ dig @192.0.2.1 sso.example.net A +short
 
 **为什么这么设**：应急改动只落在 `unblock_domains.txt` 一个文件，重生成走与日常完全相同的流水线，不引入"手工改一行表文件"这类无法复现的状态；`dig` 复核放最后，避免"白名单写了但没生效"被当成已修复。**怎么验证**：`grep sso.example.net /etc/unbound/adhole-full.conf` 应无输出，`unbound-control list_local_zones | grep sso.example.net` 应无输出，`dig` 应返回真实应答。**失败模式 / 回滚点**：reload 后链路上其他实例可能仍留有旧应答，要按第 7 章逐层确认缓存；父域级拦截（`*.` 降级或 `www.` 归一化）造成的误伤，加精确白名单未必够，需要把父域一并加入或改回更窄的清单。回滚点两处：`unblock_domains.txt` 去掉该行即恢复拦截，`adhole-full.conf` 回退上一版即整体撤销本轮更新。
 
-### 24.10.1 保留期与版本化
+### 保留期与版本化
 
 | 产物 | 保留策略 | 理由 |
 |---|---|---|
@@ -390,7 +390,7 @@ dig @192.0.2.1 sso.example.net A +short
 
 版本化做法：`install` 前把当前 `OUT` 复制成带日期的备份，备份文件本身**不要被 `include` 的通配符扫到**（24.9）。每次生成写一份 manifest，记录表行数、跳过计数、三份表规模、`geoip-cn.json` 版本与生成时间；误伤排查先看 manifest，能立刻判断是不是这一轮引入的。`last_seen` 的老化要保守：连续多轮未出现在上游清单才从表中移除，移除同样走正常重生成流程并保留旧版本以便回滚。不要因为怕漏放就永远不删条目——表越大，24.8 的内存与加载代价越高，误伤面也越宽。
 
-## 24.11 与第三篇的三处呼应
+## 与第三篇的三处呼应
 
 - **第 9 章最小暴露面**：过滤表是"答什么"的策略，`access-control` 是"谁可以问"的门，门在策略之前（24.6.4）。表文件放在 `/etc/unbound/**` 内是 AppArmor 白名单的硬要求；任何为图方便放宽 profile 的做法都等于把最小暴露面拆掉。
 - **第 7 章可观测性**：dnstap 是自己的查询流副本，本章只用它做误伤证据与"上游零查询"的定性验证，采集开关、六类消息与 30 天保留期一律沿用第 7 章；大表加载前后的 RSS、命中数与 `recursion.time.median` 基线也沿用该章方法。

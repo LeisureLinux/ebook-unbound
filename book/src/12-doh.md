@@ -4,7 +4,7 @@ DoH（DNS-over-HTTPS，[RFC 8484]）把 DNS 报文塞进 HTTP 请求体，再经
 
 以下地址均为教学用示例地址（`192.0.2.0/24`、`198.51.100.0/24`、`2001:db8::/32`），域名用 `dns.example.org`、`gw.example.net`，凭据一律写作 `<TOKEN>` 或 `example-token-0000`，不涉及任何真实公网地址、域名或密钥。
 
-## 12.1 为什么 Unbound 不是 DoH 前端
+## 为什么 Unbound 不是 DoH 前端
 
 Unbound 从 1.12.0 起提供下游 DoH 能力，但它要求编译时带 `libnghttp2`，**只支持 HTTP/2**，且实现的是固定的 `/dns-query` 端点（`http-endpoint` 可改名），媒体类型只有 `application/dns-message`。官方手册返回的状态码是协议层的：404（路径不匹配）、413/414（payload 过大）、415（media type 不对）、400（畸形请求）。这套能力用于「本机或内网里让 HTTPS 客户端能接入」是合适的，放到公网边缘就缺了几样东西：
 
@@ -49,7 +49,7 @@ ss -lntp | grep 5353
 
 **失败模式 / 回滚点**：如果把后端也配上 `interface: 0.0.0.0@443` + `tls-service-key`，就等于绕过了前端的所有认证与日志策略。回滚：`ss -lntp` 确认 443 只被 nginx/dnsdist 占用，注释掉多余的 `interface` 行 restart（`interface` 变更 reload 不生效）。
 
-## 12.2 dnsdist：`addDOHLocal` + `newServer(pool)` 的分流
+## dnsdist：`addDOHLocal` + `newServer(pool)` 的分流
 
 dnsdist 是 DNS 感知的负载均衡器，适合放在 Unbound 前面：它终止 DoH 的 HTTP/2，把 DNS 报文解出来，按规则选后端池，再以普通 DNS（或 DoH / DoT）发给后端。下面的例子给出「按 QNAME 后缀分流到不同池」的完整形态。
 
@@ -96,7 +96,7 @@ dnsdist -c 127.0.0.1:5199 -k '<TOKEN>' -e 'showServers()'
 
 **失败模式 / 回滚点**：dnsdist 2.x 起用 nghttp2 实现入向 DoH，**只支持 HTTP/2，不支持 HTTP/1.1**（官方手册明确写了）。如果前面再加一层 nginx 且回源用 HTTP/1.1，会直接握手失败；解决办法见 12.3 节。另一个坑是证书/私钥权限：dnsdist 通常以非 root 运行，私钥必须对它可读，否则 `addDOHLocal` 启动时报错。回滚：把 `addDOHLocal` 注掉、保留 `addLocal` 明文入口，先恢复 DNS 可用性，再逐项加回。
 
-### 12.2.1 生成一次可复用的 DoH 请求体
+### 生成一次可复用的 DoH 请求体
 
 ```bash
 # 用 kdig 直接发 DoH，省去手工构造线格式报文
@@ -119,11 +119,11 @@ curl -sS --http2-prior-knowledge -X POST \
 
 **失败模式 / 回滚点**：`curl` 不带 `--http2` 时默认用 HTTP/1.1，遇到只支持 h2 的前端会失败；这不是服务端挂了。回滚：加 `--http2` 或改用 `kdig +https`。
 
-## 12.3 nginx 反代：`grpc_pass` / `proxy_pass` 与 h2c 的坑
+## nginx 反代：`grpc_pass` / `proxy_pass` 与 h2c 的坑
 
 已有 nginx 在 443 上跑 Web 时，最省事的是给 DoH 加一个 `location`，把 `/dns-query` 反代给本机 dnsdist。这里要处理两个独立的坑。
 
-### 12.3.1 坑一：nginx 回源不是 HTTP/2
+### 坑一：nginx 回源不是 HTTP/2
 
 nginx 的 `proxy_pass` 到上游默认走 **HTTP/1.1**（`proxy_http_version 1.1` 是默认值），而 dnsdist 2.x 的入向 DoH 只支持 h2。官方手册给出的绕行方案是用 `grpc_pass`：gRPC 本身就要求 HTTP/2，nginx 的 `grpc_pass` 会向上游发起 h2（或 h2c）连接，从而满足 dnsdist 的要求。
 
@@ -183,7 +183,7 @@ curl -sS --http2 -o /dev/null -w '%{http_code}\n' \
 
 **失败模式 / 回滚点**：最典型的错是把 `proxy_pass` 直接指向 dnsdist 的 DoH 端口，nginx 以 HTTP/1.1 回源 → dnsdist 直接拒绝，日志里既没有 DNS 查询也没有 200，只有连接层错误。第二个错是 `grpc_pass` 与 `proxy_pass` 写在同一 `location` 里，nginx 配置检查会报错。回滚：先用 `curl --http2-prior-knowledge http://127.0.0.1:8053/dns-query` 直连 dnsdist 确认回源可用，再接上 nginx。
 
-### 12.3.2 坑二：h2c 与「明文 HTTP/2」
+### 坑二：h2c 与「明文 HTTP/2」
 
 **h2c（HTTP/2 over cleartext TCP）** 不使用 TLS，靠 HTTP/1.1 Upgrade 或先验知识（prior knowledge）建立 h2 连接。它在「nginx → 本机 dnsdist」这一段很常见，因为公网侧 TLS 已在 nginx 终止，回源再加密一次意义不大。但有两个必须写明的边界：
 
@@ -213,7 +213,7 @@ curl -sS --http2-prior-knowledge -o /dev/null -w '%{http_code}\n' \
 
 **失败模式 / 回滚点**：把 `grpc://` 写成 `grpcs://`（或反过来）会表现为 TLS 握手失败或明文被当成 TLS，日志里通常是 upstream 连接错误。回滚：统一前后端的加密形态，并保留 `nginx -t` 通过前的配置备份。
 
-## 12.4 `/dns-query` 的 `content-type` 与端点语义
+## `/dns-query` 的 `content-type` 与端点语义
 
 [RFC 8484] 把 DoH 的请求/应答媒体类型定为 `application/dns-message`，路径惯例是 `/dns-query`。Unbound 下游 DoH 的默认 `http-endpoint` 也是 `/dns-query`，dnsdist 自 1.5.0 起默认同样如此。几个容易踩的细节：
 
@@ -241,11 +241,11 @@ curl -sS --http2 -o /dev/null -w 'wrong-path=%{http_code}\n' \
 
 **失败模式 / 回滚点**：如果 415 变成 200，说明中间有组件把 `content-type` 改写了；如果 404 变成 200，说明 `location` 匹配范围过宽，token 校验被绕过。后者是安全问题，必须立刻收紧正则。
 
-## 12.5 iOS / Android 描述文件：`ServerURL` 与认证限制
+## iOS / Android 描述文件：`ServerURL` 与认证限制
 
 移动端配 DoH 有两种常见途径：MDM 下发的 `com.apple.dnsSettings.managed` 描述文件（iOS/iPadOS 14+），以及 Android 的「私人 DNS / Private DNS」设置。二者的能力边界不同，直接决定了 token 该放哪。
 
-### 12.5.1 iOS：`DNSSettings` 只能配 `ServerURL`
+### iOS：`DNSSettings` 只能配 `ServerURL`
 
 Apple 的 `DNSSettings` 描述文件里，DoH 由 `ServerURL` 指定「URI 模板」（[RFC 8484] 语义），并要求 `https://` scheme；系统用 URL 里的主机名或地址去验证服务器证书。同一个字典里还有 `ServerName`（DoT 的主机名，按 [RFC 7858] 校验证书）、`ServerAddresses`、`SupplementalMatchDomains`、`PayloadCertificateUUID`（用身份证书向解析器认证客户端）等键。关键限制是：**描述文件里没有「自定义 HTTP 请求头」这一项**。因此 `Authorization: Bearer <TOKEN>` 在 iOS 上配不出来，唯一能由我们控制、又能随请求带上的字符串就是 URL 本身。
 
@@ -280,7 +280,7 @@ kdig +https=/dns-query/example-token-0000 @dns.example.org example.org A
 
 **失败模式 / 回滚点**：token 放路径意味着它会进 nginx access log、CDN 日志、以及任何做 URL 记录的中间设备——**这不是秘密，只是凭据**，必须按凭据管理：定期轮换、日志里脱敏、不要复用同一 token 给所有设备。另一个坑是 URL 里的 `{?dns}` 模板语法与自定义路径混写，系统实际请求路径与 `addDOHLocal` 的 `urls` 不一致 → 404。回滚：先用不带 token 的 `/dns-query` 确认连通，再加路径段。
 
-### 12.5.2 Android：Private DNS 与 DoH 的边界
+### Android：Private DNS 与 DoH 的边界
 
 Android 的「私人 DNS」在用户层面配置的是一个 **DoT 主机名**（系统按 [RFC 7858] 用它做证书校验），而不是任意 DoH URL；较新版本的解析模块支持 DoH 的能力由系统实现与版本决定，配置面并不等同于 iOS 的 `ServerURL`。因此在本书的口径下：**要给 Android 一个可控的加密端点，优先用第 11 章的 DoT 853，而不是假定描述文件能配 DoH URL**。
 
@@ -298,11 +298,11 @@ openssl s_client -connect 192.0.2.1:853 -servername resolver.example.net \
 
 **失败模式 / 回滚点**：若填的是带 `https://` 的 URL，设备会把它当主机名做 DNS 查询与证书校验，必然失败。回滚：改回纯主机名，并确保该名字在系统当前 DNS 下可解析（自签 CA 场景需要先装 CA）。
 
-## 12.6 浏览器 canary 域：让内置 DoH 主动关闭
+## 浏览器 canary 域：让内置 DoH 主动关闭
 
 自建 DoH 端点最容易被绕过的方式，不是链路被破解，而是**浏览器根本没用你的解析器**。Firefox 与 Chrome 各自有「是否启用内置 DoH」的判断机制，理解它们的差异比按 IP 封 443 有效得多。
 
-### 12.6.1 Firefox：`use-application-dns.net` 回 NXDOMAIN
+### Firefox：`use-application-dns.net` 回 NXDOMAIN
 
 Firefox 在启用内置 DoH 前会查询 canary 域 `use-application-dns.net.`。如果本地解析器对该名字返回 NXDOMAIN（或该查询被阻断导致无应答），Firefox 就不启用内置 DoH，改用系统解析器——于是流量回到我们可控的链路上。
 
@@ -327,7 +327,7 @@ dig @127.0.0.1 -p 5353 _dns.resolver.arpa. SVCB +short
 
 **失败模式 / 回滚点**：`always_nxdomain` 与 `static` 语义不同——前者忽略 `local-data`，若日后需要给个别名字留白名单要改用 `transparent`。另一个坑是只在本机 Unbound 配了 canary，但客户端的 DNS 被 nft 劫持到了别的实例（第 14 章），那台实例没配 → Firefox 照样启用内置 DoH。回滚：确认链路上**每一层**解析器都返回 NXDOMAIN。
 
-### 12.6.2 Chrome：靠系统解析器匹配已知提供商列表
+### Chrome：靠系统解析器匹配已知提供商列表
 
 Chrome 的内置 DoH 升级逻辑是：当系统解析器属于已知的 DoH 提供商列表时，才把该解析器升级为对应的 DoH 端点。指向私有解析器（例如 `192.168.68.1`、`fd00::1` 或 `192.0.2.1`）时，名字不在列表里，Chrome **不会自行升级**，会继续用系统解析器。因此不需要按域名封，也不需要额外 canary 域。
 
@@ -345,7 +345,7 @@ tcpdump -ni any 'tcp port 443 and (dst net 192.0.2.0/24 or dst net 198.51.100.0/
 
 **失败模式 / 回滚点**：**按 IP 封 443 是 denylist 不是证明**。一方面会误伤同 IP 上的正常 Web 服务，另一方面端点换地址就失效，而且它无法告诉你「客户端到底有没有绕过」——只能证明「这几个 IP 不通」。真正要测的是「能不能绕过」：用一台客户端把系统 DNS 改成公共解析器，看浏览器是否升级到内置 DoH，以及本地 canary 是否仍生效。回滚：恢复系统解析器指向自建端点，并复查 canary 域。
 
-## 12.7 日志留存方是谁：DoH 并不等于「无人记录」
+## 日志留存方是谁：DoH 并不等于「无人记录」
 
 把这一节单独列出来，是因为「加密」最容易被误读成「不留痕」。一次 DoH 查询会在至少三处留下可关联的记录：
 
@@ -371,7 +371,7 @@ find /var/log/nginx -name 'doh.access.log*' -mtime +30 -print
 
 **失败模式 / 回滚点**：最常见的失败是「前端日志脱敏做了，dnstap 全量查询流却无限期留着」——抗元数据聚合在自己门口破功。回滚：为 dnstap 单独设保留期与清理任务；日志策略变更要同步通知所有能读日志的人。
 
-## 12.8 验收清单
+## 验收清单
 
 | 检查项 | 期望 | 命令 |
 |---|---|---|

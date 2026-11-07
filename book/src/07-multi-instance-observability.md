@@ -4,7 +4,7 @@
 
 本章不新增角色，只把前面三章的实例放到同一台主机上，给出规划方法、观测手段与刷缓存的完整路径。实验环境仍是一台家庭网关 + 一台境外云主机，以下为教学用示例地址：IPv4 用 `192.0.2.0/24`、`198.51.100.0/24`、`203.0.113.0/24`（[RFC 5737]），IPv6 用 `2001:db8::/32`（[RFC 3849]），内网写 `192.168.68.0/24`、ULA 写 `fd00::/64`，主机名统一 `gw-01` / `edge-01` / `cloud-01`，不声明是真实环境。所有令牌与凭据一律写 `<TOKEN>` 或 `***`。
 
-## 7.1 同一主机多实例的端口 / 接口规划
+## 同一主机多实例的端口 / 接口规划
 
 多实例最容易出的低级错是"配置文件都对了，但两个进程抢同一个东西"。先把独占资源列全：
 
@@ -120,7 +120,7 @@ unbound-control -c /etc/unbound/egress.conf status
 
 **失败模式 / 回滚点**：`ss` 里缺某个端口 → 先检查 `interface` 是否只 reload 没 restart（第 4 章：`interface` 变更只有 restart 生效）；控制端口连不上 → 查 `control-interface` 与证书四件套是否各实例独立。回滚：每实例的配置、pidfile、zonefile 都是独立文件，逐个 `systemctl stop` 即可，不会互相牵连。
 
-## 7.2 按域名分流到不同实例
+## 按域名分流到不同实例
 
 "按域名分流"有两种完全不同的实现，先分清再动手：
 
@@ -168,7 +168,7 @@ unbound-control -c /etc/unbound/filter.conf list_forwards
 
 **失败模式 / 回滚点**：最常见的错是"配了具体区却忘了默认区"，导致不匹配的名字无路可走；或者反过来，把具体区写成了 `.`，等于没分流。回滚：删掉具体 `forward-zone` 段并 restart，所有查询回落到默认区。还要注意第 6 章讲过的 uid 豁免——B 实例的分流若把出向 53 指向了自己，会形成自问自答的环。
 
-## 7.3 过滤表（local-zone 大表）的内存代价与 AppArmor 路径限制
+## 过滤表（local-zone 大表）的内存代价与 AppArmor 路径限制
 
 ```yaml
 # /etc/unbound/filter.conf 的追加片段 —— 教学用示例地址
@@ -201,7 +201,7 @@ dig @192.168.68.1 blocked.example.net A +short
 
 **失败模式 / 回滚点**：`list_local_zones | wc -l` 远小于预期条数，先怀疑 include 通配符没匹配到、或 AppArmor 拒绝读取；`journalctl -k` / `audit.log` 里的 DENIED 是证据。回滚：把过滤表放回白名单内的既有目录，或临时注释掉 `include` 行 restart（过滤失效是预期代价，要同步告知使用方）。
 
-## 7.4 DDR 压制与 always_nodata
+## DDR 压制与 always_nodata
 
 ```yaml
 # /etc/unbound/filter.conf 的追加片段 —— 教学用示例地址
@@ -230,7 +230,7 @@ dig @192.168.68.1 blocked.example.net A
 
 **失败模式 / 回滚点**：过度压制会挡掉合法的内部 SVCB / HTTPS 记录使用（例如自己部署的服务发现），排查时先确认是不是这条 `always_nodata` 吞掉了。回滚：把对应 `local-zone` 行改为 `nodefault` 或删掉并 reload。
 
-## 7.5 dnstap 全量查询流与 30 天保留期
+## dnstap 全量查询流与 30 天保留期
 
 dnstap 是结构化二进制日志，**记录的是自己的查询流副本**：客户端问了什么、本实例向谁问了什么、回了什么。它对抗"元数据在别处被聚合"很有用，但代价是把同样的元数据集中到自己门口。所以开启全量日志的同时必须写清保留期——**本书统一取 30 天**，并配套轮转与到期删除。
 
@@ -278,7 +278,7 @@ find /var/log/dnstap -type f -name '*.dnstap*' -mtime +31 | wc -l
 
 **失败模式 / 回滚点**：`dnstap-enable: yes` 但 socket 不存在 → 连接失败，日志里持续报错，解析本身通常不受影响；编译没带 dnstap 时选项可能被忽略。回滚：`dnstap-enable: no` 并 restart，同时确认保留期脚本仍在跑（历史文件不会因为关掉采集就自动消失）。
 
-## 7.6 unbound-control 开启与不开的取舍
+## unbound-control 开启与不开的取舍
 
 `remote-control` 默认 `control-enable: no`。开启需要 `unbound-control-setup` 生成自签证书四件套（`server-key-file`、`server-cert-file`、`control-key-file`、`control-cert-file`），客户端与服务端都读同一段配置。
 
@@ -319,7 +319,7 @@ dig @192.168.68.1 example.org A +short
 
 **失败模式 / 回滚点**：控制证书权限不对（降权后 `unbound` 用户读不到）→ 连不上，`journalctl` 里有 TLS / 文件权限错误。回滚：`control-enable: no` 并 restart，回到"只能重启刷缓存"的模式；此时务必把链路上所有实例列成清单，避免漏刷。
 
-## 7.7 日志字段与 SERVFAIL 排查
+## 日志字段与 SERVFAIL 排查
 
 ```yaml
 # 各实例 server: 段的公共片段
@@ -356,7 +356,7 @@ dig @192.168.68.1 example.org A | grep -E 'status:|SERVER:'
 
 **失败模式 / 回滚点**：只把 `verbosity` 调高而不开 `log-servfail`，会得到大量无关调试行却仍看不清 SERVFAIL 原因。回滚：`verbosity: 1` + 保留 `log-servfail: yes`。`num.queries_timed_out` 持续增长而 `num.recursivereplies` 不涨，基本可以断定是出向链路或上游，不是本机缓存。
 
-## 7.8 缓存命中率与延迟的基线测量方法
+## 缓存命中率与延迟的基线测量方法
 
 没有基线就谈不上"调优有效"。下面给一套可复制的测量法，全部用 `stats_noreset` 与 `dig`，不依赖外部监控栈。
 

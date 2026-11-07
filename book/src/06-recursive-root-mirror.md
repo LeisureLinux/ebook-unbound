@@ -6,7 +6,7 @@
 
 实验环境仍是一台家庭网关 + 一台境外云主机，以下为教学用示例地址：IPv4 用 `192.0.2.0/24`、`198.51.100.0/24`、`203.0.113.0/24`（[RFC 5737]），IPv6 用 `2001:db8::/32`（[RFC 3849]），内网写 `192.168.68.0/24`、ULA 写 `fd00::/64`，主机名统一 `gw-01` / `edge-01` / `cloud-01`，不声明是真实环境。**根服务器地址一律写成示意地址**（例如 `198.51.100.53`），实际部署时应换成权威机构公开的根服务器地址，不要照抄本书的文档地址段。
 
-## 6.1 auth-zone 的四个开关
+## auth-zone 的四个开关
 
 `auth-zone` 是 Unbound 的"权威区"机制：把一份区数据装进本机，按两个不同阶段参与应答。配根区镜像就是配一个 `name: "."` 的 `auth-zone`。
 
@@ -50,7 +50,7 @@ dig @127.0.0.1 . NS +norecurse +short | head
 
 **失败模式 / 回滚点**：`unbound-checkconf` 只验语法，不会验 AXFR 是否真能拉到数据。若 `dig . NS +norecurse` 返回的是空答案或 SERVFAIL，而日志里有区过期 / 传输失败信息，说明镜像没建立起来，`fallback-enabled: yes` 此时正在替你兜底。回滚：删掉整个 `auth-zone` 段并 restart，实例退回普通递归解析器（用内置根提示）。
 
-## 6.2 用 NSD 做本地根镜像
+## 用 NSD 做本地根镜像
 
 Unbound 自己不能对外提供 AXFR，所以本机根镜像的常见形态是：**NSD 持有一份根区 zonefile 并允许本机 AXFR，Unbound 通过 `auth-zone` 从 NSD 拉取**。这一步把 `primary` 从"远端根服务器"换成"本机 NSD"，也让 6.6 节的出向 53 豁免问题更直观。
 
@@ -105,7 +105,7 @@ unbound-control stats_noreset | grep -E 'num.queries|num.cachemiss'
 
 **失败模式 / 回滚点**：`request-xfr` 指向的示意地址不可达时，NSD 手里只有空区或旧区，Unbound 拉到的就是空数据。回滚：把 `auth-zone` 的 `primary` 改回直连真实根服务器（6.3 节），或临时撤掉 `auth-zone` 让 Unbound 用内置根提示递归。
 
-## 6.3 直连 AXFR 的实测形态
+## 直连 AXFR 的实测形态
 
 不引入 NSD 也可以：`auth-zone` 的 `primary` 直接写根服务器地址，Unbound 自己发起 AXFR / IXFR。
 
@@ -150,7 +150,7 @@ dig @198.51.100.53 . AXFR +norecurse | wc -l
 
 **失败模式 / 回滚点**：最典型的失败是 **TCP/53 出向被防火墙 / nftables 吃掉**——UDP SOA 探测能通，AXFR 却永远建不起来，表现为 `root.zone` 一直是空文件或旧时间戳。这正是下一节的主题。回滚：`fallback-enabled: yes` 保证解析不断，撤掉 `auth-zone` 段即可彻底回到内置根提示。
 
-## 6.4 root-hints 与 auth-zone 的区别
+## root-hints 与 auth-zone 的区别
 
 这两个都和"根"有关，但完全不是一回事，混用会产生很难解释的行为。
 
@@ -176,7 +176,7 @@ unbound-control lookup example.org | head -20
 
 **失败模式 / 回滚点**：把 `root-hints` 指向一台不可达的根服务器，会让 priming 一直超时；把 `auth-zone` 的 zonefile 当成 root-hints 文件用（后者只该含 NS 与地址）会导致解析异常。回滚时一次只撤一个，别同时改两处。
 
-## 6.5 zonefile 持久化：重启别把根区弄丢
+## zonefile 持久化：重启别把根区弄丢
 
 ```yaml
 auth-zone:
@@ -212,7 +212,7 @@ sudo -u unbound test -w /var/lib/unbound/root.zone && echo writable
 
 **失败模式 / 回滚点**：文件属主是 root 且权限 0644 → Unbound 能读不能写，AXFR 更新后重写失败，日志报错但解析暂时照旧，直到重启暴露问题。`sudo -u unbound test -w` 是这条最便宜的检查。回滚：把 zonefile 移到正确目录并修正属主，或临时撤掉 `zonefile` 行靠 `primary` 每次重拉（接受冷启动代价）。
 
-## 6.6 出向 53 必须按 uid 豁免，否则自己吃掉自己
+## 出向 53 必须按 uid 豁免，否则自己吃掉自己
 
 这是本章的核心故障机理，也是全书"排查网络故障先看 nftables 规则"的最典型例子。
 
@@ -259,7 +259,7 @@ stat -c '%y' /var/lib/unbound/root.zone
 
 **失败模式 / 回滚点**：改完 nftables 仍不更新，先看规则命中计数（`nft list ruleset -a` 配合 `nft list chain ... -a`），确认豁免规则有没有被匹配；再看是不是 `primary` 用了文档示意地址而实际根本不可达。回滚：`nft flush` 前保留一份可回滚的规则文件，或临时 `nft delete rule` 撤掉新增豁免观察差异；解析业务本身有 `fallback-enabled: yes` 兜底，不会立刻全断。
 
-## 6.7 验收与镜像失效演练
+## 验收与镜像失效演练
 
 把本章各段收成一次可复现的验收。下面的顺序故意从"数据是否存在"查到"链路是否真的出去"，避免一上来就怀疑网络：
 

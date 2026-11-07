@@ -4,7 +4,7 @@
 
 以下地址均为教学用示例地址：IPv4 用 [RFC 5737] 的 `192.0.2.0/24`、`198.51.100.0/24`、`203.0.113.0/24`，IPv6 用 `2001:db8::/32`，内网用 RFC 1918 通用写法 `192.168.68.0/24` 与 ULA `fd00::/8`，主机名按 `gw-01` / `edge-01` / `cloud-01` 命名且不声明是真实环境。凭据一律 `<TOKEN>`。实验环境按「一台家庭网关 + 一台境外云主机的实验环境」理解。
 
-## 14.1 整体链路：从客户端 :53 到远端递归验证器
+## 整体链路：从客户端 :53 到远端递归验证器
 
 ```text
 [LAN 客户端 / WG 对等端]
@@ -74,9 +74,9 @@ unbound-control -c /etc/unbound/policy.conf list_forwards
 
 **失败模式 / 回滚点**：`unbound-checkconf` 对 `forward-addr` 指向回环且 `do-not-query-localhost: yes` 时会给出警告「地址不会被用于查询」——不会报错，但转发会静默失败，表现为全量 SERVFAIL。这是最容易被忽略的一条。回滚：明确写 `do-not-query-localhost: no`，并确认 A 与 B 的端口不重叠。
 
-## 14.2 nft 规则：劫持 :53 与 uid 豁免
+## nft 规则：劫持 :53 与 uid 豁免
 
-### 14.2.1 完整规则示例
+### 完整规则示例
 
 ```bash
 #!/usr/sbin/nft -f
@@ -140,7 +140,7 @@ nft list chain inet mangle output-tproxy
 
 **失败模式 / 回滚点**：`nft -f` 是**重建表**，会清空集合（见 14.3）；`meta skuid unbound` 要求系统里确实存在该用户，写成别的名字等于没写。回滚：改动前 `nft list ruleset > /etc/nftables.conf.bak`，出问题时 `nft -f /etc/nftables.conf.bak`。
 
-### 14.2.2 排查顺序：先看 nftables
+### 排查顺序：先看 nftables
 
 「根区镜像不更新」「AXFR 失败」「WG 握手不通」「上游看起来全挂」这四个现象里，至少三个的根因在规则表，不在 Unbound 配置。固定排查顺序：
 
@@ -165,7 +165,7 @@ tcpdump -ni any 'udp port 53 or tcp port 853 or udp port 51820' -c 30
 
 **失败模式 / 回滚点**：`nft reset counters` 会清零所有计数，排查前先记录基线。回滚：优先恢复备份规则集，而不是逐条删规则——逐条删容易留下半截状态。
 
-## 14.3 `nft -f` 重建表会清空集合
+## `nft -f` 重建表会清空集合
 
 一个很实际但很少写进文档的坑：`nft -f file` 加载规则文件时，如果文件里定义了 `table inet mangle { ... }` 且包含 `set`，它是按文件内容**重建**这张表，而不是增量合并。这意味着：
 
@@ -190,7 +190,7 @@ nft list table inet mangle | grep -A5 'set domestic-dns'
 
 **失败模式 / 回滚点**：现象通常是「重启后分流突然只对几个默认域生效」「策略路由部分失效」，很容易被误判成上游或 DDNS 脚本坏了。回滚：`nft -f /var/tmp/nft-before-lab.txt`（导出的规则集包含当时的集合内容），并把动态集合的维护脚本纳入开机流程。
 
-## 14.4 跨境链路实测：为什么加密通道优先 TCP
+## 跨境链路实测：为什么加密通道优先 TCP
 
 这一节给出本项目在「一台家庭网关 + 一台境外云主机的实验环境」里的实测结论。同一条跨境链路上，用一个 1 MB 的测试文件对比两种承载：
 
@@ -239,7 +239,7 @@ tcpdump -ni any 'udp port 53' -c 10
 
 **失败模式 / 回滚点**：`tcp-upstream: yes` 是全局开关，会同时影响本地国内域的解析（如果 A 也用它）；更稳的做法是把「出隧道的那一段」限定在 B 的配置里（第 5 章的 `forward-tcp-upstream` 可按 zone 设置）。另一个坑是 SSH SOCKS 只代理 TCP，DNS 若还有 UDP 段（例如 A 的国内上游）照旧走明文，别把「开了 SOCKS」当成「全链路加密」。回滚：恢复 `tcp-upstream: no` 的配置快照，并重新拉起隧道。
 
-### 14.4.1 fail-closed 在整条链路上怎么落地
+### fail-closed 在整条链路上怎么落地
 
 第 13 章给的是单点的 fail-closed，这里补链路版：
 
@@ -286,11 +286,11 @@ nft flush chain inet filter output
 
 **失败模式 / 回滚点**：演练时 `nft` 规则务必恢复（先 `nft list ruleset > /etc/nftables.conf.bak`）。若出现「慢一点但仍返回答案」，检查 A 的 `forward-first` 是否被别的文件覆盖、以及有没有第二条 `forward-addr`。
 
-## 14.5 真实形态的坑：WG 回包被 `output-tproxy` 吃掉
+## 真实形态的坑：WG 回包被 `output-tproxy` 吃掉
 
 这是策略网关里最反直觉的一个故障。现象是：**WireGuard 隧道起不来**，握手一直不完成；但 `wg show` 里能看到端点地址、配置看起来完全正确，云主机侧也没收到握手包。
 
-### 14.5.1 因果链
+### 因果链
 
 ```text
 ① 策略网关的 output-tproxy 链尾有一条兜底打标规则：meta mark set 0x2332
@@ -303,7 +303,7 @@ nft flush chain inet filter output
 
 第一反应通常是加一条 `meta skuid 0 accept` 放行「内核发出的包」，因为直觉上内核没有用户态 uid。**这个匹配不到**：`meta skuid` 只匹配用户态进程的 socket owner，WG 在内核态发出的这类包没有对应的 skuid 元数据，链尾的 mark 规则照样命中。
 
-### 14.5.2 修法：链首按 sport 显式 accept
+### 修法：链首按 sport 显式 accept
 
 ```bash
 #!/usr/sbin/nft -f
@@ -336,7 +336,7 @@ tcpdump -ni any 'udp port 51820' -c 20
 
 **失败模式 / 回滚点**：两种常见复发方式——① 有人把「优化后的规则文件」重新 `nft -f` 加载，链首 accept 被冲掉（14.3 节）；② 换了 WG 端口却没改规则。回滚：`nft -f /etc/nftables.conf.bak`，并把这条 accept 写进主规则文件而不是临时命令。另一个误判来源是「以为是云主机防火墙没放行 51820」，结果在云主机侧查了半天——按 14.2.2 的顺序，先看网关自己的 nftables。
 
-### 14.5.3 与 uid 豁免的对照
+### 与 uid 豁免的对照
 
 | 豁免对象 | 匹配方式 | 原因 |
 |---|---|---|
@@ -349,7 +349,7 @@ tcpdump -ni any 'udp port 51820' -c 20
 
 **失败模式 / 回滚点**：如果为了图省事写了 `udp dport 53 accept` 而不带 `meta skuid`，等于把 LAN 客户端的 53 也放行了，劫持策略失效。回滚：恢复带 `meta skuid` 的精确豁免。
 
-## 14.6 一张验收清单
+## 一张验收清单
 
 | 检查项 | 期望 | 命令 |
 |---|---|---|

@@ -1,10 +1,12 @@
+# 第二篇 按角色配置 Unbound {.unnumbered}
+
 # 缓存解析器：最小可用配置
 
 一台家庭网关 + 一台境外云主机的实验环境里，第一件要跑起来的东西不是加密传输，也不是过滤表，而是一台能被 `dig` 问通、能被 `unbound-control stats` 看见的缓存解析器（caching resolver）。本章的所有地址都是教学用示例地址：IPv4 取 `192.0.2.0/24`、`198.51.100.0/24`、`203.0.113.0/24`（[RFC 5737]），IPv6 取 `2001:db8::/32`（[RFC 3849]），内网统一写成 `192.168.68.0/24` 与 ULA `fd00::/64`，不对应任何真实拓扑。
 
 这一章只处理"缓存解析器"这一个角色：它自己做递归、自己维护缓存、对下游表现为一台可用的递归解析器。转发器（forwarder）在第 5 章，本地根区镜像在第 6 章，DNSSEC 验证在第三篇第 10 章，QNAME 最小化（QNAME minimisation，QMIN）的参数在第三篇第 13 章，都不在这里展开。
 
-## 4.1 十行起步
+## 十行起步
 
 先给一台什么都还没配的机器写出最小可用配置。下面这十行是完整文件，不是片段（注释行不计入十行）：
 
@@ -45,7 +47,7 @@ dig @127.0.0.1 example.org A +short
 
 **失败模式 / 回滚点**：`systemctl start` 失败时看 `journalctl -u unbound -n 50`，最常见是 53 端口被 `systemd-resolved` 或其他实例占住。最小配置没有动 `port`，回滚就是 `systemctl stop unbound`，无状态可丢失（缓存为空）。
 
-## 4.2 把监听面从回环扩到 LAN
+## 把监听面从回环扩到 LAN
 
 ```yaml
 # /etc/unbound/unbound.conf.d/20-listen.conf —— 教学用示例地址
@@ -78,7 +80,7 @@ dig @2001:db8::1 example.org AAAA +short
 
 **失败模式 / 回滚点**：`ss` 里看不到新地址，先怀疑是 reload 没生效（上面那条限制），再怀疑地址尚未配到网卡上。回滚：删掉新增 `interface` 行并 `systemctl restart unbound`，回环仍可用。若 `dig` 从 LAN 侧拿到 `REFUSED`，用 `dig -b 192.0.2.1` 指定源地址复核 `access-control` 的最长前缀匹配。
 
-## 4.3 降权、chroot 与信息隐藏
+## 降权、chroot 与信息隐藏
 
 ```yaml
 # /etc/unbound/unbound.conf.d/30-hardening.conf
@@ -107,7 +109,7 @@ ps -o user=,pid=,comm= -C unbound
 
 **失败模式 / 回滚点**：前两条应为空或 REFUSED；若返回了版本串，说明 `hide-version` 没被加载（检查 include 顺序、是否 reload 了错的实例）。`ps` 应显示 `unbound` 用户；若仍是 `root`，检查是否 `username: ""` 被后面的 include 覆盖。回滚：把 `chroot` 恢复为空串并 restart，降权与隐藏两项可以独立保留。
 
-## 4.4 EDNS 缓冲区：1232，不要 1472
+## EDNS 缓冲区：1232，不要 1472
 
 ```yaml
 # /etc/unbound/unbound.conf.d/40-edns.conf
@@ -138,7 +140,7 @@ dig @127.0.0.1 +bufsize=4096 example.org A +short
 
 **失败模式 / 回滚点**：把 `edns-buffer-size` 改成 1472 后若出现"部分域名偶发 2 秒延迟后才有答案"，先怀疑分片被丢，而不是怀疑上游。回滚就是改回 1232 并 reload（这两个参数不需要改 `interface`，reload 生效）。注意 `dig +bufsize=` 是测试工具侧的覆盖，不要拿它当配置值来源。
 
-## 4.5 线程与缓存尺寸
+## 线程与缓存尺寸
 
 ```yaml
 # /etc/unbound/unbound.conf.d/50-cache.conf
@@ -173,7 +175,7 @@ sysctl net.core.rmem_max
 
 **失败模式 / 回滚点**：`num-threads` 与缓存尺寸都需要 restart 才能完全生效；reload 后看到数字没变不要急着改第二遍。缓存开太大导致内存吃紧时，优先降 `msg-cache-size`，保持 1:2 比例回滚。配置里若把缓存设成 0，`prefetch` / `prefetch-key` 都失去意义，官方手册对此有明确说明。
 
-## 4.6 serve-expired 全家：先刷新，超时才回过期缓存
+## serve-expired 全家：先刷新，超时才回过期缓存
 
 术语统一：本书把"用过期缓存应答"统一叫**过期缓存应答（serve-stale）**，配置项则按原样写 `serve-expired*`。这一组参数在 Unbound 里有两种模式，理解它们靠 `serve-expired-client-timeout`：
 
@@ -209,7 +211,7 @@ dig @127.0.0.1 example.org A +short
 
 **失败模式 / 回滚点**：把 1800 误读成秒、写成 `1800` 以为给了半小时缓冲，实际是 1.8 秒；反过来若写成 `1800000` 想表达 1.8 秒也会让客户端等半小时。回滚：`serve-expired: no` 并 reload 即可关闭整组行为，缓存本身不受影响。另一个坑是"上游慢但没全断"时，1.8 秒到点就回旧数据，业务上若要求强一致性，应改用 `serve-expired-client-timeout: 0` 之外的方式——直接关闭 `serve-expired`，不要靠调大超时硬扛。
 
-## 4.7 完整闭环：checkconf → 启动 → dig → stats
+## 完整闭环：checkconf → 启动 → dig → stats
 
 把前面各段合起来，形成一次可复现的上线闭环。下面这段脚本假设配置放在 `unbound.conf.d/`、由主配置 `include` 进去；每台机器上路径可能不同，按实际发行版调整。
 
@@ -253,7 +255,7 @@ unbound-control stats | grep -E 'total.num.cachehits|total.num.cachemiss'
 
 **失败模式 / 回滚点**：`unbound-control` 连不上时先查 `control-interface`（默认只听回环）、证书文件权限与 `username` 降权后能否读取密钥，不要首先怀疑网络。整段脚本的回滚点是"保留上一版 `unbound.conf.d/` 目录的副本"：所有变更都是纯配置文件，`systemctl restart unbound` 会重建一个空缓存，不会损坏数据。真正的状态只有缓存，丢弃它是可接受的；如果链路上还有第二层缓存实例，别忘了那一层也要单独确认（第 7 章）。
 
-## 4.8 从"能跑"到"可交付"的核对表
+## 从"能跑"到"可交付"的核对表
 
 | 项 | 期望 | 一条检查命令 |
 |---|---|---|

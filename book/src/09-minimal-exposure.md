@@ -4,7 +4,7 @@
 
 实验环境是一台家庭网关 + 一台境外云主机，以下为教学用示例地址：IPv4 取 `192.0.2.0/24`、`198.51.100.0/24`、`203.0.113.0/24`（[RFC 5737]），IPv6 取 `2001:db8::/32`，域名用 `example.net` / `example.org`，内网写通用 `192.168.68.0/24` 与 ULA `fd00::/64`，主机名 `gw-01` / `edge-01`，凭据一律 `<TOKEN>`。本章只做暴露面：DNSSEC 验证在第 10 章，加密传输（DoT / DoH）在第 11、12 章，QMIN 与 DDR 压制在第 13 章，nftables 的 `:53` 劫持与按 uid 豁免在第 14 章，都不在这里展开。
 
-## 9.1 监听地址逐条列出，不要 `0.0.0.0`
+## 监听地址逐条列出，不要 `0.0.0.0`
 
 `interface` 决定在哪些本地地址上收包。`0.0.0.0` 与 `::` 的含义是「本机所有地址，包括以后新加的地址」：今天多一个网卡、明天多一条隧道，解析器就自动多一张嘴。
 
@@ -28,7 +28,7 @@ server:
 
 **失败模式 / 回滚点**：官方手册明确写了 `interface` 的变更在 `kill -HUP` reload 时**不生效**、只有 restart 生效，所以「改了配置但 `ss` 没变」先怀疑 reload。地址还没配到网卡上就 restart 会绑定失败。回滚：保留上一版副本，删掉新增行并 `systemctl restart unbound`；回环仍可用，缓存重建是可接受代价。
 
-## 9.2 `access-control`：默认拒绝、最长前缀匹配、与顺序无关
+## `access-control`：默认拒绝、最长前缀匹配、与顺序无关
 
 `interface` 管「收不收这个包」，`access-control` 管「收到之后答不答」，两者不是一回事。
 
@@ -50,7 +50,7 @@ server:
 
 **失败模式 / 回滚点**：客户端拿到 REFUSED 而端口正常，问题一定在 `access-control`；最隐蔽的错是把 allow 段写成 `/32` 却以为写的是 `/24`。回滚：删掉误加的 `deny` 行后 `unbound-control reload`（`access-control` 支持 reload，`interface` 不支持）。
 
-## 9.3 不对公网开放递归：放大倍数从哪来
+## 不对公网开放递归：放大倍数从哪来
 
 一台对任意源地址都提供递归的解析器叫**开放解析器（open resolver）**。它被别人当免费 DNS 用，也被当反射器打第三方。
 
@@ -69,7 +69,7 @@ server:
 
 **失败模式 / 回滚点**：若返回答案，说明有更宽的 allow 段或测到了另一个实例。回滚：撤掉最宽的 allow 段、reload，再逐段放回；不要靠「关掉防火墙」排障，那会把暴露面直接打开。相关 BCP 编号与年份见官方手册，不在这里编造。
 
-## 9.4 降权、chroot 与 AppArmor 路径白名单
+## 降权、chroot 与 AppArmor 路径白名单
 
 `username` 在绑定 53 端口后降权，`chroot` 把文件视图限制到一棵子树，AppArmor 再从 LSM 层限制可读路径。三层叠加，最容易踩的是路径。
 
@@ -105,7 +105,7 @@ server:
 
 **失败模式 / 回滚点**：出现 DENIED 就把文件放回 `/etc/unbound/` 既有目录，或按实际路径补 `r,` 后 `apparmor_parser -r` 重载。回滚：注释掉新增 include 行并 restart，代价是那部分配置不生效，要同步告知使用方。SELinux 机制相同、工具不同，见官方手册对应章节。
 
-## 9.5 `private-address`：防 DNS rebinding
+## `private-address`：防 DNS rebinding
 
 DNS rebinding 让浏览器先解析到攻击者控制的公网地址，再把同一名字的应答改成你的内网地址；浏览器同源策略按域名判断，页面脚本就成了进入内网的代理。
 
@@ -128,7 +128,7 @@ server:
 
 **失败模式 / 回滚点**：最典型的误判是「内网服务突然解析不到地址」，因为自己的权威应答也返回 `192.168.68.x`，被一并剔除。回滚：给该域名加 `private-domain`，或逐条注释网段后 reload；不要整段关掉。
 
-## 9.6 `local-zone` 与 [RFC 6761] 特殊用途域
+## `local-zone` 与 [RFC 6761] 特殊用途域
 
 `local-zone` 让解析器在本地给出权威式应答，查询根本不出网；既省流量，也防内网信息泄漏到公网权威服务器。
 
@@ -147,7 +147,7 @@ server:
 
 **失败模式 / 回滚点**：过度压制会挡掉合法内部命名（例如真用了 `*.test` 做测试域）。回滚：把对应行改成 `nodefault` 或删掉再 reload，过滤失效是预期代价。
 
-## 9.7 限流与丢弃异常查询
+## 限流与丢弃异常查询
 
 先纠正高频拼写错误：官方选项名是 **`ratelimit`**（无连字符）与 **`ip-ratelimit`**，写成 `rate-limit` 会直接报 unknown option。两者管的不是同一件事：
 
@@ -185,7 +185,7 @@ server:
 
 **失败模式 / 回滚点**：`ip-ratelimit` 设得低于正常突发量，表现是「偶尔整批超时且日志里什么都没有」——超限是静默丢包，最易误判成网络抖动。回滚：几个值改回 0 并 `unbound-control reload`（手册把 `ratelimit` / `ip-ratelimit` 列为可 reload 项），确认业务恢复后逐项加回；`unwanted-reply-threshold` 触发时缓存被清空是设计行为，不是数据损坏。
 
-## 9.8 日志最小化与留存策略
+## 日志最小化与留存策略
 
 查询日志是查询流在自己门口的副本：客户端地址、QNAME、类型与时序都在里面。加密传输把链路上的观察者请出去之后，日志就成了新的集中观察者。原则是**默认不记、排障时临时开、开了必须有到期删除**。
 
@@ -222,7 +222,7 @@ MaxRetentionSec=30day
 
 **失败模式 / 回滚点**：改完不 `systemctl restart systemd-journald` 就不生效；`SystemMaxUse` 过小会让日志在保留期到期前被清掉。回滚：删掉 drop-in 并重启 journald，同时确认备份里没有无限期保存的查询日志副本。
 
-## 9.9 防火墙只放行必要端口：nftables 基础写法
+## 防火墙只放行必要端口：nftables 基础写法
 
 `access-control` 是应用层的门，防火墙是内核层的门；两道都要有，一次误配才不至于直接变成公网暴露。
 
@@ -257,7 +257,7 @@ table inet filter {
 
 **失败模式 / 回滚点**：在唯一一条远程 SSH 会话里直接 `nft -f` 一个 `policy drop` 的文件，可能把自己锁在外面——`-c` 查语法，不查「你会不会被锁」。操作前先 `nft list ruleset > /etc/nftables.conf.bak`，最好有带外控制台。回滚：`nft -f /etc/nftables.conf.bak`；`nft -f` 重建表会清掉运行时 `nft add element` 加的集合元素与计数器（第 14 章），所以备份必须是完整 ruleset 而非几行命令。
 
-## 9.10 完整可复制的加固基线
+## 完整可复制的加固基线
 
 把前九节合成**一个文件**。假设客户端在 `192.0.2.0/24` 与 `2001:db8::/64`，管理主机在 `198.51.100.0/24`，本机监听 `192.0.2.1` / `2001:db8::1`，走普通 53 端口、不做加密传输、不做 DNSSEC 验证。
 
@@ -334,7 +334,7 @@ server:
 
 **失败模式 / 回滚点**：`unbound-checkconf` 只验语法与路径，不验 `access-control` 语义、不验 AppArmor 放行、不验防火墙丢包；通过不等于基线生效。上线顺序固定为「先备份旧 `unbound.conf.d/` 与 ruleset → checkconf → `systemctl restart unbound`（改了 `interface`，reload 不生效）→ 跑 9.11」，回滚见 9.12。
 
-## 9.11 逐条验证命令
+## 逐条验证命令
 
 按序号跑，任何一条不过就停在原地，不要同时改多个参数。
 
@@ -365,7 +365,24 @@ unbound-control stats_noreset | grep -E 'total.num.queries|num.cachehits|num.que
 
 **失败模式 / 回滚点**：`unbound-control` 连不上先查 `control-interface` 与证书权限，不要据此判定实例挂了；`nft -c` 通过但第 4 条仍返回答案，说明最宽的那条 allow 还在。逐条期望值就是验收表，失败时回到对应小节的回滚点。
 
-## 9.12 回滚点
+## 出向收敛：把 DNS 隧道数据外泄堵在边界上
+
+DNS 隧道是加固中最常见的通病之一：防火墙放行了 UDP/53，却没管**谁能发、发给谁**。攻击者在内网主机上把凭据或配置编码进子域标签（`base64chunk.exfil.example.net`），查询一路经过内部解析器到达其控制的权威服务器；应答用 TXT / NULL / CNAME 回传，就形成一条双向 C2 与外泄信道。吞吐很低也够用，而 DGA 轮换域名让「封几个坏域名」必然失效。第 29 章会展开检测与排查，这里只给加固动作。
+
+```bash
+# 教学骨架：客户端只能问内部解析器，内部解析器只能问受控上游
+# 示例地址取自 RFC 5737 文档段
+nft add rule inet filter output ip daddr != 192.0.2.53 udp dport 53 counter drop
+nft add rule inet filter output ip daddr != 192.0.2.53 tcp dport 53 counter drop
+```
+
+**为什么这么设**：把「谁能发 53」收敛到一台自己可控的解析器，外泄信道的最后一跳就消失；同时保留内部解析器向受控上游的例外。若上游用 DoT，边界上还要放行 853 给指定地址，并在解析器侧写死 `forward-addr`。
+
+**怎么验证**：从一台客户端 `dig @198.51.100.9 example.org` 应超时；`dig @192.0.2.53 example.org` 应正常；nft counter 应随被丢弃的直连查询增长。再用 dnstap 看是否还有高熵长标签流向非常规域。
+
+**失败模式 / 回滚点**：最容易误伤的是容器/kubelet 自带的 DNS、以及 IoT 设备硬编码的公共解析器。先只 `counter` 观察一周再 `drop`；回滚就是删掉这两条规则。**注意**：这一层只防「客户端绕过内部解析器」，不防内部解析器自己被滥用 —— 那要靠第 29 章的速率与唯一 FQDN 检测。
+
+## 回滚点
 
 | 变更 | 生效方式 | 回滚动作 | 回滚代价 |
 |---|---|---|---|

@@ -4,7 +4,7 @@
 
 本章的实验环境仍是一台家庭网关 + 一台境外云主机，所有地址都是教学用示例地址：上游用 `192.0.2.53`、`198.51.100.53`、`203.0.113.53`（[RFC 5737]），IPv6 用 `2001:db8::53`（[RFC 3849]），本机监听用回环与 `192.168.68.0/24` 这类通用内网写法，ULA 用 `fd00::/64`。主机名统一写成 `gw-01`、`edge-01`、`cloud-01`、`dns.example.org`、`resolver.example.net`，不声明是真实环境。
 
-## 5.1 最小转发器：唯一上游
+## 最小转发器：唯一上游
 
 ```yaml
 # /etc/unbound/unbound.conf.d/10-forward.conf —— 教学用示例地址
@@ -48,7 +48,7 @@ unbound-control -c /etc/unbound/unbound.conf list_forwards
 
 **失败模式 / 回滚点**：若 `dig` 返回 SERVFAIL 而不是超时，先查上游是否真的会递归（拿 `dig @192.0.2.53 example.org A` 直连测一次）。回滚：删掉 `forward-zone` 段并 restart，实例退回第 4 章的普通缓存解析器，缓存会清空但无持久状态损坏。
 
-## 5.2 多个 forward-addr 是并发竞速，不是主备
+## 多个 forward-addr 是并发竞速，不是主备
 
 这是本章最要紧的一条实测结论，也是"唯一上游"要求的由来。
 
@@ -78,7 +78,7 @@ tcpdump -ni any 'udp port 53 and host 198.51.100.53' -c 5
 
 **失败模式 / 回滚点**：已经上了双上游的生产实例，修复就是删掉多余行并 restart（缓存清空是预期代价）。不要试图用"给第二条设个更差的超时"来模拟主备——语义不支持。`forward-first: yes` 不是补救，它会打开另一条逃生通道。
 
-## 5.3 TCP 承载的上游：forward-tcp-upstream
+## TCP 承载的上游：forward-tcp-upstream
 
 ```yaml
 # /etc/unbound/unbound.conf.d/20-forward-tcp.conf —— 教学用示例地址
@@ -104,7 +104,7 @@ tcpdump -ni any 'tcp port 53 and host 192.0.2.53' -c 5
 
 **失败模式 / 回滚点**：上游若只监听 UDP（少见但存在），会全量 SERVFAIL。回滚：改为 `no` 或删掉该行并 reload（`forward-zone` 选项可 reload 生效，不必改 `interface`）。若 `unbound-control` 未开启，改完记得 `systemctl restart` 才保险；reload 与 restart 的差异见第 7 章。
 
-## 5.4 加密上游：forward-tls-upstream 与 tls-cert-bundle
+## 加密上游：forward-tls-upstream 与 tls-cert-bundle
 
 `forward-tcp-upstream` 解决"用 TCP 承载"，但不加密。**加密传输（DoT / DoH / DoQ）与 DNSSEC 是两件事**：前者提供传输加密 / 隐私，后者提供数据完整性 / 来源认证，任何配置都不得用一个替代另一个。本节的 DoT 只是上游方向的客户端用法；服务端侧 DoT（853 端口监听）在第三篇第 11 章，DoH 在第 12 章，协议族对比在第四篇第 17 章。
 
@@ -141,7 +141,7 @@ openssl s_client -connect 192.0.2.53:853 -servername dns.example.org -CAfile /et
 
 **失败模式 / 回滚点**：`tls-cert-bundle` 路径写错或 `chroot` 后不可见 → 启动失败或全量 SERVFAIL；证书名不匹配 → 握手失败，日志出现 TLS 认证错误。回滚：保留 `forward-tls-upstream: yes` 但先不要把实例切到生产，用 `forward-addr: 192.0.2.53@53` 的明文配置做对照实验，验证完再切回。任何情况下都不要靠删掉 `forward-first: no` 来"让它通"。
 
-## 5.5 do-not-query-localhost: no 的适用条件
+## do-not-query-localhost: no 的适用条件
 
 ```yaml
 # /etc/unbound/unbound.conf.d/40-local-upstream.conf —— 教学用示例地址
@@ -177,7 +177,7 @@ ss -lunp | awk '$5 ~ /:5358$/ {print}'
 
 **失败模式 / 回滚点**：若只有下游实例在跑，全量 SERVFAIL 且日志有 "no query to localhost" 一类提示。回滚：恢复默认 `yes`，把 `forward-addr` 指向真正可达的非回环上游。这是本章最容易在"改了配置文件但没重启第二个实例"时踩到的坑。
 
-## 5.6 转发器上不要配 auto-trust-anchor-file
+## 转发器上不要配 auto-trust-anchor-file
 
 ```yaml
 # 反面示例：转发器上不要这样写
@@ -208,7 +208,7 @@ unbound-checkconf /etc/unbound/unbound.conf && grep -rn 'auto-trust-anchor-file'
 
 **失败模式 / 回滚点**：删掉 `auto-trust-anchor-file` 行并 restart，日志里的 priming 报错应立即停止。若业务要求本机出 AD 标志，正确做法不是把它加回来，而是改成递归解析器角色或换用本地根区镜像。
 
-## 5.7 巡检脚本生成配置的幂等写法
+## 巡检脚本生成配置的幂等写法
 
 上游切换交给外部脚本，就必须保证脚本**幂等**。下面这个形态是本章最值得抄走的一段：
 
@@ -272,7 +272,7 @@ systemctl show unbound -p NRestarts
 
 **失败模式 / 回滚点**：最常见的错是把 `unbound-checkconf "$STAGING"` 写成检查 `$DEST`——那样检查的是旧文件，新错误配置照样被 install。另一个错是 `restart` 写成 `reload` 且同时改了 `interface`（第 4 章：interface 变更只有 restart 生效）。回滚：脚本生成的只有一个 `10-forward.conf`，用备份覆盖并 restart 即可；`logger` 记录给出了每次 install 的时间点，便于定位。
 
-## 5.8 转发器的验收清单
+## 转发器的验收清单
 
 | 检查项 | 期望 | 命令 / 依据 |
 |---|---|---|

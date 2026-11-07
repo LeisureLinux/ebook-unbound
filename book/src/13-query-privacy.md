@@ -4,9 +4,9 @@
 
 本章只处理第三篇的「怎么做」：参数、命令、验证与失败模式。QMIN 的协议演进（[RFC 7816] → [RFC 9156]）、DoT/DoH/DoQ 的 RFC 对比放在第四篇第 17 章。以下地址均为教学用示例地址，域名用 `dns.example.org`、`resolver.example.net`，凭据写作 `<TOKEN>`。
 
-## 13.1 QMIN 的动机与边界
+## QMIN 的动机与边界
 
-### 13.1.1 它抗的是「元数据聚合」，不是「全路径嗅探」
+### 它抗的是「元数据聚合」，不是「全路径嗅探」
 
 未开 QMIN 时，解析器查 `assets.cdn.example.org A`，向根、TLD、以及该域的权威服务器都会带上完整 QNAME。这些服务器各自只负责命名空间的一部分，本不需要知道完整名字，但完整名字让它们能长期积累「谁在查什么」的元数据。QMIN 的做法是：向每一级只发**推进解析所必需的最少标签数**，并在可能时把 QTYPE 改成 `A`，只在需要最终答案的那一跳才发完整 QNAME 与原始 QTYPE。
 
@@ -30,7 +30,7 @@ dig @127.0.0.1 -p 5353 assets.cdn.example.org A +short
 
 **失败模式 / 回滚点**：`get_option` 在某些构建里可能不可用，此时以 `unbound-control stats_noreset` 与配置文件为准，不要凭「配了就生效」下结论。抓包里若仍看到完整 QNAME 出现在 TLD 那一跳，先确认查询是不是命中了缓存（命中缓存不出向）。回滚：把 `strict` 明确写成 `no`，别只删掉一行——默认值随版本可能变化。
 
-### 13.1.2 三条必须写明的边界
+### 三条必须写明的边界
 
 1. **QMIN 不是加密**。它只减少发给上级的 QNAME 标签数，报文仍在链路上以明文（或解密后的形式）存在。能观察完整路径的人依旧能看到查询；QMIN 削减的是「每一级权威服务器各自能聚合到多少元数据」。
 2. **`harden-below-nxdomain` 只对 DNSSEC-secure 的 NXDOMAIN 生效**。官方手册的 NOTE 明确写了这一点：只有 DNSSEC 验证过的 NXDOMAIN 才会用于剪枝（且 NSEC3 opt-out 不够）。无信任锚、无签名区里的 NXDOMAIN 不触发，所以它在「没有验证器」的部署里是空转，别误判成「已生效」。
@@ -49,7 +49,7 @@ unbound-control stats_noreset | grep -E 'num.query.aggressive|num.val' || true
 
 **失败模式 / 回滚点**：把 `harden-below-nxdomain: yes` 当成「QMIN 的强力版」是常见误读——它管的是「已知 NXDOMAIN 之下不必再问」，与「向每一级发多少标签」是两件事。回滚：二者独立配置，互不为前置。
 
-## 13.2 `yes` 与 `yes+strict` 的区别
+## `yes` 与 `yes+strict` 的区别
 
 官方手册对 `qname-minimisation-strict` 的定义是：严格模式下**不回退**到向可能有问题的权威服务器发送完整 QNAME，并附了一句很直白的警告——「启用后很多域将无法解析，只在你知道自己在做什么时使用」。
 
@@ -82,7 +82,7 @@ dig @127.0.0.1 -p 5353 www.example.org A +short
 
 **失败模式 / 回滚点**：`strict: yes` 的失败不是「某个域查不到」，而是「整站资源解析失败」（见 13.3），且伴随负缓存放大。改配置必须 **restart** 并逐层刷缓存，回滚点就是 `strict: no` 的完整配置备份。
 
-## 13.3 真实兼容坑：违反 RFC 8020 的 CNAME 区
+## 真实兼容坑：违反 RFC 8020 的 CNAME 区
 
 这是本章最值得记住的一条实测结论。某大型 CDN 的 CNAME 区违反了 [RFC 8020]：对中间层名字返回 **NXDOMAIN**，但其子名（例如带主机名前缀的 CNAME）**确实存在**。按规范这是矛盾的——父名 NXDOMAIN 意味着下面什么都没有。
 
@@ -137,11 +137,11 @@ unbound-control stats_noreset | grep -E 'num.cache|num.query' | head -10
 
 **失败模式 / 回滚点**：若刷完仍失败，先检查是不是 `strict: yes` 还留在某个实例的 include 片段里（`grep -rn qname-minimisation-strict /etc/unbound/`），再检查上游权威服务器是否真的修好了。回滚：整条链回滚到 `strict: no` 的配置快照，并保留一次逐层刷缓存的记录，便于复盘。
 
-## 13.4 fail-closed：禁止静默明文降级
+## fail-closed：禁止静默明文降级
 
 隐私机制再完整，只要有一条「失败时偷偷走明文」的路径，前面全部作废。这一节把第 5 章的结论收拢成可断言的工程要求。
 
-### 13.4.1 两波都失败就 SERVFAIL
+### 两波都失败就 SERVFAIL
 
 「两波」指加密上游的两轮尝试（含重试）都失败：TLS 握手失败、超时、或对端 SERVFAIL。此时正确行为是给客户端 **SERVFAIL**，让监控与人看见故障；错误行为是回退到明文 53 自行递归，查询流全程裸奔，而且客户端完全无感。
 
@@ -177,7 +177,7 @@ nft flush chain inet filter output   # 演练结束立刻恢复
 
 **失败模式 / 回滚点**：演练时 `nft` 规则一定要记得恢复（用 `nft list ruleset > /etc/nftables.conf.bak` 先备份）。若出现「慢一点但还是返回答案」，几乎一定是 `forward-first: yes` 或存在第二条 `forward-addr`。
 
-### 13.4.2 单上游断言
+### 单上游断言
 
 转发器里给 `forward-zone` 配第二个 `forward-addr`，Unbound 是**并发竞速取最快**，不是主备。这会把查询送到既定上游之外，令过滤表、加密策略、日志归属全部失效。单上游不是「冗余不足」，而是「策略唯一」的断言：上游切换交给外部巡检脚本（第 5 章）。
 
@@ -192,7 +192,7 @@ grep -rn 'forward-addr' /etc/unbound/unbound.conf.d/ | grep -v '^.*#'
 
 **失败模式 / 回滚点**：配置文件被某个包管理器的默认片段追加了一条上游，是最隐蔽的来源。回滚：把上游定义集中到单一文件，并在巡检脚本里加一条「条数不等于 1 就告警」。
 
-### 13.4.3 fallback 定义了但无人引用，也算安全
+### fallback 定义了但无人引用，也算安全
 
 一个常被忽略的细节：配置里可以存在一段 `forward-zone` 或某个备用池，只要**没有任何规则把查询引到它**，它就不会被使用。第 12 章 dnsdist 的 `newServer({pool="..."})` 定义了池但不写 `PoolAction` 引用，同样不会生效。这类「死配置」在审计时是安全的，但有两个前提：
 
@@ -209,7 +209,7 @@ unbound-control list_local_zones | grep -E 'fallback|backup' || true
 
 **失败模式 / 回滚点**：某天有人加了一条 `PoolAction` 或 `forward-first: yes`，死配置瞬间变成**静默降级通道**。回滚：把这类 fallback 定义放进单独的注释文件并定期复查引用关系；发现被引用就按 13.4.1 重做断链演练。
 
-## 13.5 DDR 压制与浏览器 canary
+## DDR 压制与浏览器 canary
 
 客户端绕过本地解析器的路径有两条：DDR（Discovery of Designated Resolvers，[RFC 9462]）自动发现加密解析器，以及浏览器自带的 DoH。两条都要在本地解析器上压制，而不是靠封 IP。
 
@@ -235,7 +235,7 @@ unbound-control list_local_zones | grep -E '_dns.resolver|use-application'
 
 **失败模式 / 回滚点**：如果链路上还有另一层解析器（nft 劫持目标、dnsdist 后端、系统存根），那一层没配这两条 → 客户端照样发现端点或启用内置 DoH。**要逐层验证**。另一个坑是 `always_nodata` 与 `static` 的区别：前者忽略 `local-data`，需要给个别名字留白名单时应改用 `transparent` 或配合具体 `local-data`。回滚：注释掉两条 `local-zone` 并 restart，客户端立即恢复默认发现行为。
 
-### 13.5.1 Chrome 与「按 IP 封 443 是 denylist 不是证明」
+### Chrome 与「按 IP 封 443 是 denylist 不是证明」
 
 Chrome 的内置 DoH 升级依赖**系统解析器是否匹配已知 DoH 提供商列表**。指向私有解析器（如 `192.168.68.1`、`fd00::1`、`192.0.2.1`）时不在列表里，Chrome 不会自行升级，会继续用系统解析器——因此不需要 canary 域，也不需要封域名。
 
@@ -254,7 +254,7 @@ tcpdump -ni any 'tcp port 443 and not dst net 192.0.2.0/24' -c 20
 
 **失败模式 / 回滚点**：演练后忘记把系统 DNS 改回来，会让这台客户端长期绕过所有本地策略。回滚：演练前后各存一份 `/etc/resolv.conf` 快照，并在脚本里用 `trap` 恢复。
 
-## 13.6 ECS 默认不发
+## ECS 默认不发
 
 EDNS Client Subnet（ECS，[RFC 7871]）会把客户端地址的一部分随查询送给权威服务器，让 CDN 按「用户所在网段」返回就近节点。代价是：**每发一次 ECS，就等于主动向第三方披露一条客户端网段信息**，与本章的抗元数据目标直接冲突。
 
@@ -281,7 +281,7 @@ dig @127.0.0.1 -p 5353 +subnet=192.0.2.0/24 example.org A | grep -E 'CLIENT-SUBN
 
 **失败模式 / 回滚点**：把 `module-config` 写成 `"subnetcache validator iterator"` 却忘了配任何 `send-client-subnet`，表面上「开了 ECS 模块」但什么都没发，容易误判成已生效或已泄露。回滚：恢复 `"validator iterator"`，并复查所有 include 片段里有没有 `client-subnet-zone`。
 
-## 13.7 dnstap 是自己的查询流副本
+## dnstap 是自己的查询流副本
 
 dnstap 是结构化的 DNS 事件日志格式，能记录客户端查询、客户端应答、解析器与转发器的出向/入向报文。它的价值是排障与审计；它的风险是**你自己在自己门口生成了一份完整的查询流副本**。前面所有 QMIN、DDR 压制、ECS 默认不发，都是为了减少元数据外泄；如果 dnstap 全量日志无限期留存，等于把削减掉的元数据又完整存了一份在本地磁盘上，还会进入备份、日志采集系统、SIEM。
 
@@ -314,7 +314,7 @@ systemctl cat dnstap-collector 2>/dev/null | grep -i -E 'retention|rotate' || tr
 
 **失败模式 / 回滚点**：三个高频问题：① 编译 Unbound 时没带 `--enable-dnstap`，配置能过但功能不存在；② 采集器挂了导致 dnstap 线程阻塞或事件丢失，表现为「日志有缺口」而不是「DNS 不通」；③ 只给 nginx access log 设了保留期，dnstap 归档无限增长。回滚：`dnstap-enable: no` 并 restart，先恢复可观测性的最小集，再修采集器。
 
-### 13.7.1 把保留期写成可执行断言
+### 把保留期写成可执行断言
 
 ```bash
 # 教学示例：采集器侧的清理任务，保留 30 天
@@ -330,7 +330,7 @@ systemctl list-timers | grep -i dnstap || true
 
 **失败模式 / 回滚点**：`-delete` 类命令写错路径会误删别的日志。回滚：先不带 `-delete` 跑一遍 `-print` 看清单，确认路径后再启用删除；并保留采集器配置的备份。
 
-## 13.8 一张验收清单
+## 一张验收清单
 
 | 检查项 | 期望 | 命令 / 依据 |
 |---|---|---|

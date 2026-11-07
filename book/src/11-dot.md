@@ -4,7 +4,7 @@
 
 以下全部地址均为教学用示例地址，取自 [RFC 5737] 的 `192.0.2.0/24`、`198.51.100.0/24`，IPv6 用 `2001:db8::/32`；域名统一用 `resolver.example.net`、`dns.example.org`，不涉及任何真实公网地址。实验环境按「一台家庭网关 + 一台境外云主机的实验环境」理解。
 
-## 11.1 服务端的最小骨架：`@853` 才是开关
+## 服务端的最小骨架：`@853` 才是开关
 
 Unbound 对 DoT 的启用方式很容易被误读：`tls-service-key` / `tls-service-pem` 只是**把证书装上去**，真正决定「哪个监听端口跑 TLS」的是 `interface` 行上的 `@853` 后缀与 `tls-port`。官方手册的说明是：`tls-port`（默认 853）上只对那些以 `@端口` 形式配置的 interface 提供 TLS 服务，而且这些端口**不再提供普通 DNS TCP 服务**。
 
@@ -57,7 +57,7 @@ ss -lntp | grep -E ':853|:5353'
 
 **失败模式 / 回滚点**：最常见的错是只写了 `interface: 0.0.0.0` 加 `tls-service-key`，却没写 `@853`——结果 853 根本没被监听，或 53 上被当成了 TLS 端口而普通 TCP DNS 失效。第二个坑是证书文件放在 `root` 权限目录或 `chroot` 之外，此时换证必须 **restart**，`unbound-control reload` 读不到新文件（官方手册明确写了这点）；回滚点就是保留上一份 `server-chain.pem` 与 `server.key` 的备份，restart 前先做 `unbound-checkconf`。
 
-### 11.1.1 证书文件与权限
+### 证书文件与权限
 
 ```bash
 install -d -m 0750 -o root -g unbound /etc/unbound/tls
@@ -80,11 +80,11 @@ unbound-checkconf /etc/unbound/unbound.conf.d/10-dot-server.conf
 
 **失败模式 / 回滚点**：`namei -l` 任何一级目录缺执行位都会导致降权后读不到；日志里通常是 TLS 初始化失败而不是「证书过期」。回滚：恢复 0640/0750 权限后 restart，不要通过关掉 `username` 来「绕过」权限问题——那等于把整个递归解析器跑在 root 下。
 
-## 11.2 证书的两条路线：Let's Encrypt 与自签 + 客户端 pin
+## 证书的两条路线：Let's Encrypt 与自签 + 客户端 pin
 
 DoT 的认证名来自客户端配置里的 `#名字`（见 11.3），服务端证书必须覆盖这个名字。两条路线各有边界。
 
-### 11.2.1 公共 CA（以 Let's Encrypt 为例）
+### 公共 CA（以 Let's Encrypt 为例）
 
 ```bash
 # 教学示例：用 DNS-01 挑战为 resolver.example.net 签发证书
@@ -113,7 +113,7 @@ openssl s_client -connect 192.0.2.1:853 -servername resolver.example.net \
 
 **失败模式 / 回滚点**：certbot 的续期钩子如果只做 `reload`，而私钥路径在 chroot 之外，新证书不会被加载，表现为续期后某一天突然全量 TLS 握手失败（旧证书过期的那一刻）。钩子必须 `systemctl restart unbound`，并在钩子开头跑一次 `unbound-checkconf`。回滚：保留 `server-chain.pem.bak` / `server.key.bak`，restart 前校验。
 
-### 11.2.2 自签 CA + 客户端 pin
+### 自签 CA + 客户端 pin
 
 自己签一张只用于这台解析器的证书，把 CA 公钥（或叶子证书的 SPKI 哈希）固化到客户端，可以避免「公共 CA 误签发」这一类信任面，也省掉域名与续期流程。
 
@@ -156,7 +156,7 @@ openssl s_client -connect 192.0.2.1:853 -servername resolver.example.net \
 
 **失败模式 / 回滚点**：自签路线的典型故障是客户端拿系统 CA 包去验证自签证书，必然失败——此时不是「DoT 不通」，而是「认证材料不对」。回滚：客户端侧改回带公共 CA 的上游，或把 `lab-ca.pem` 正确分发为 `tls-cert-bundle`。pin 值一旦泄露不敏感（它是公钥哈希），但**换私钥必须同步换 pin**，这是运维上最容易漏的一步。
 
-## 11.3 客户端：单上游、TLS 认证名、fail-closed
+## 客户端：单上游、TLS 认证名、fail-closed
 
 下面是一份完整可复制的客户端配置。客户端是网关上的 Unbound 转发器，上游是云主机上的 DoT 服务端（用公共解析器地址 `192.0.2.53` 或 `1.1.1.1` 作教学占位均可，重点是 `@853#名字` 的形态）。
 
@@ -207,7 +207,7 @@ tcpdump -ni any 'tcp port 853 or udp port 53 or tcp port 53' -c 20
 
 **失败模式 / 回滚点**：三个高频错误：① 漏写 `tls-cert-bundle` → 连接无法认证，日志里是 TLS 相关错误而非超时；② 漏写 `#认证名` → 表面上能通，但认证强度已下降，这是**静默的**；③ 误把 `forward-first` 设成 `yes` 或加了第二条 `forward-addr` → 静默明文降级或过滤表失效。回滚：恢复 `10-dot-client.conf.bak` 并 restart；断链演练后记得检查链路各层负缓存（第 13 章）。
 
-### 11.3.1 自签场景的客户端写法
+### 自签场景的客户端写法
 
 ```yaml
 # /etc/unbound/unbound.conf.d/10-dot-client-pinned.conf
@@ -232,7 +232,7 @@ dig @127.0.0.1 example.org A +short
 
 **失败模式 / 回滚点**：把 `lab-ca.pem` 分发错版本（比如分发了私钥或旧 CA）会导致所有客户端一起 TLS 失败，且各客户端表现一致，容易被误判为「上游挂了」。回滚：客户端 `tls-cert-bundle` 指回系统 CA 包，同时上游临时换回公共 CA 证书。
 
-## 11.4 验证命令：`openssl s_client` 与 `kdig`
+## 验证命令：`openssl s_client` 与 `kdig`
 
 服务端的 TLS 层与 DNS 层要分开验证。只看 `dig` 成功，无法证明「证书被正确认证」。
 
@@ -274,7 +274,7 @@ unbound-control stats_noreset | grep -E 'num.query.tcpout|num.query.tls' || true
 
 **失败模式 / 回滚点**：`+tls-ca` 未指定文件时默认用系统证书库，自签场景必须 `-CAfile` 指向 `lab-ca.pem`（`kdig` 用 `+tls-ca=/path` 形式）。另一个坑是 `+tls-hostname` 与 `-servername` 写错成 IP——证书里通常没有 IP 的 SAN，会报主机名不匹配。回滚：先用第 ⑤ 条确认 853 可连，再逐项加回认证参数，二分定位。
 
-## 11.5 与 nginx / HAProxy 共端口的取舍
+## 与 nginx / HAProxy 共端口的取舍
 
 853 是专用端口，链路边界清晰：防火墙放行 853/TCP 即可，抓包能一眼区分「加密传输（DoT / DoH / DoQ）」与「普通 Web」。但专用端口也意味着在只放行 443 的网络里会被直接丢掉。想让 443 同时承载 Web 与 DoT，有两条路。
 
@@ -317,15 +317,15 @@ kdig -d @192.0.2.1 -p 443 +tls-ca +tls-hostname=resolver.example.net example.org
 
 **失败模式 / 回滚点**：DoT 客户端**不一定发送 SNI**（协议并不强制），一旦客户端省略 SNI，`$ssl_preread_server_name` 为空，查询会被送到 Web 后端，表现为「偶尔 TLS 握手成功但 DNS 无响应」。这类间歇故障极难查。回滚：退回独占 853，或在 443 上改用 DoH（第 12 章），DoH 的 HTTP 层天然带 `:authority`，不依赖 SNI 分流。
 
-### 11.5.1 SNI 与隐私的边界
+### SNI 与隐私的边界
 
 SNI 是明文的：即使 DNS 报文被 TLS 加密，ClientHello 里的 `servername` 仍会向链路上的观察者暴露「客户端在连哪台解析器」。因此 SNI 不能作为隐私增强手段，它只是**分流与虚拟主机**的机制。想减少这类元数据，可考虑：客户端不配 SNI 而靠 IP + 认证名认证（但会破坏上面的分流方案）、或使用 ECH 一类机制（超出本章范围）。
 
 更实际的边界是：**SNI 暴露的是「你连了谁」，不是「你查了什么」**。查询内容在 TLS 内，QNAME 不外泄给链路观察者；但查询量、时序、报文长度仍是可观测的元数据，[RFC 7830] 的 EDNS(0) padding 与 [RFC 9230] 的相关机制可用于对齐长度（协议层对比见第四篇第 17 章）。
 
-## 11.6 连接复用、TCP fastopen 与 MTU / EDNS 1232
+## 连接复用、TCP fastopen 与 MTU / EDNS 1232
 
-### 11.6.1 连接复用是 DoT 的性能前提
+### 连接复用是 DoT 的性能前提
 
 TLS 握手 + TCP 三次握手的成本远高于一次 UDP 查询。如果每条查询都新建连接，DoT 的延迟会退化到不可接受。因此 DoT 依赖**长连接 + 多查询复用**，相关参数在官方手册里是一组 TCP 选项：
 
@@ -360,7 +360,7 @@ unbound-control stats_noreset | grep -E 'num.query.tcp|num.query.tcpout'
 
 **失败模式 / 回滚点**：把 `tcp-idle-timeout` 设得极短（例如 200ms）会让移动端频繁重握手、耗电且延迟抖动；设得极长则连接表被空闲客户端占满，官方手册说明在空闲缓冲低于阈值时会**自动逐级缩短**这个值，所以「参数没生效」不一定是配置错。回滚：恢复默认值（30s / 60s / 200 次），观察 `incoming-num-tcp` 是否触顶。
 
-### 11.6.2 TCP fastopen 的适用范围
+### TCP fastopen 的适用范围
 
 TCP Fast Open（TFO）允许在 SYN 里带数据，省掉一次 RTT。它对「短连接、每次重连」收益明显，对本章的长连接复用场景收益有限，且依赖内核与中段网络不丢弃带数据的 SYN。客户端诊断可用 `kdig +fastopen` 观察，服务端侧是否启用要看系统与 Unbound 编译/平台支持，不能假定「配了就一定生效」。
 
@@ -377,7 +377,7 @@ sysctl net.ipv4.tcp_fastopen
 
 **失败模式 / 回滚点**：TFO 引发的连接异常往往表现为「偶发首次查询超时、重试后正常」，很容易被误判成上游抖动。回滚：`+fastopen` 去掉即可，Unbound 侧不必改动。
 
-### 11.6.3 MTU 与 EDNS 1232
+### MTU 与 EDNS 1232
 
 `edns-buffer-size` 与 `max-udp-size` 的默认值都是 **1232**（DNS Flag Day 2020 建议值）。这个数字不是随手取的：IPv6 最小 MTU 是 1280，扣掉 40 字节 IPv6 头与 8 字节 UDP 头，剩 1232；这样即便链路上 MTU 只有 1280（例如 WireGuard 隧道、PPPoE 1492 上的封装叠加）也不会 IP 分片。历史上常见的 `edns-buffer-size: 1472` 在以太网 1500 下看似安全，一旦套上隧道就分片，而分片在很多网络里被直接丢弃，表现为「等超时后重试 TCP」。
 
@@ -402,7 +402,7 @@ ip link show wg0 | grep mtu || true
 
 **失败模式 / 回滚点**：把 `edns-buffer-size` 降到 512 能绕过最严苛的 MTU，但会制造大量 TC=1 与 TCP 重试，官方手册称其为「极端值」。回滚：改回 1232，并检查隧道 MTU（`ip link show`）而不是只调 DNS 参数。
 
-## 11.7 一张验收清单
+## 一张验收清单
 
 | 检查项 | 期望 | 命令 |
 |---|---|---|

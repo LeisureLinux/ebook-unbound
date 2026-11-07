@@ -2,7 +2,7 @@
 
 > 本章所有地址、域名与集群名均为**教学用示例**：`192.0.2.0/24`、`198.51.100.0/24`、`2001:db8::/32` 属 [RFC 5737] 与 [RFC 3849] 文档段，`gw-01` / `cloud-01` 只是教学代号，`svc.example.internal`、`dns.example.org` 不代表任何真实服务。
 
-## 20.1 先划清一条边界：服务发现 ≠ 递归解析
+## 先划清一条边界：服务发现 ≠ 递归解析
 
 Kubernetes 里的 DNS 问题和本书前四篇讨论的不是同一个问题。前四篇的递归解析器（recursive resolver）面对的是**整个公网名字空间**：从根开始迭代、做 DNSSEC 验证、缓存、过滤、走加密上游。集群里的 DNS 面对的是**一个 closed world**：`svc.example.internal`、`kube-dns.kube-system.svc.example.internal`、`<pod-ip>.<namespace>.pod.example.internal` 这些名字只在集群内有意义，答案来自 API Server 里的 Service / EndpointSlice 对象，而不是任何权威服务器。
 
@@ -14,7 +14,7 @@ Kubernetes 里的 DNS 问题和本书前四篇讨论的不是同一个问题。�
 
 一个常见的误判是「CoreDNS 已经做了缓存，为什么还要 NodeLocal 或 Unbound」。因为缓存的**位置**决定了它能否绕开内核的 conntrack 竞态（20.5），而缓存的**语义**（验证与否、负缓存多久、是否 serve-stale）决定了它能否满足第三篇的加固基线（20.7）。
 
-## 20.2 从 kube-dns 到 CoreDNS
+## 从 kube-dns 到 CoreDNS
 
 早期集群里 `kube-dns` 是一个三容器组合：`kubedns`（watch Service/Endpoints 并维护一棵内存树）、`dnsmasq`（缓存 + 存根转发）、`sidecar`（健康与指标）。CoreDNS 自 Kubernetes 1.11 起成为可选、1.13 起成为默认（具体版本以官方发布说明为准，见参考资料）。更替不是因为功能表多了一行，而是四个工程原因：
 
@@ -29,7 +29,7 @@ Kubernetes 里的 DNS 问题和本书前四篇讨论的不是同一个问题。�
 
 另需记住：CoreDNS 是 CNCF 毕业项目，这一身份说明它解决的是**云原生服务发现**问题，而不是「公网递归解析器」问题。CNCF 的成熟度评价不构成把它当验证器使用的依据。
 
-## 20.3 四种 dnsPolicy 与 resolv.conf 的形态
+## 四种 dnsPolicy 与 resolv.conf 的形态
 
 Pod 的 `dnsPolicy` 决定 kubelet 往容器里写一份什么样的 `/etc/resolv.conf`。这是一个很具体的、可以 `kubectl exec` 出来看的差异。
 
@@ -89,7 +89,7 @@ spec:
 
 **失败模式 / 回滚点**：`searches` 写漏 `svc.example.internal` 会让跨命名空间的短名失败；回滚把 `dnsPolicy` 改回 `ClusterFirst` 并删掉 `dnsConfig`。注意 `dnsConfig` 的 `searches` 最多 6 项（上限以官方 API 文档为准），不要照抄一份很长的域列表。
 
-## 20.4 ndots:5 的查询放大，以及 search 域与绝对域名
+## ndots:5 的查询放大，以及 search 域与绝对域名
 
 `ndots: n` 的语义是：当查询名里的点数**少于 n** 时，存根解析器先按 `search` 列表逐项拼接，全部试过之后才把原始名字当绝对域名（FQDN）再查一次。默认 `ndots:5` 配上 3 个 search 域，意味着：
 
@@ -122,7 +122,7 @@ kubectl exec dns-policy-demo -- getent hosts api.dns.example.org
 
 「绝对域名」的正确写法是末尾那个点：`dig api.dns.example.org. +short`。在 Corefile 与 `dnsConfig` 里写域名时也应保持一致：CoreDNS 的 `kubernetes` 插件用 `cluster.local` 风格的 `example.internal` 作为集群域，写完整域名时带尾点可避免被 server block 的后缀匹配误吞。
 
-## 20.5 NodeLocal DNSCache：大规模集群几乎必需
+## NodeLocal DNSCache：大规模集群几乎必需
 
 NodeLocal DNSCache 以 DaemonSet 方式在每个节点跑一个轻量缓存（通常用 CoreDNS），在节点本地监听一个地址，Pod 的 DNS 查询先到这里，缓存未命中才转发给集群 DNS Service。它解决的不是「缓存命中率」这种锦上添花的事，而是两个很硬的问题：
 
@@ -162,7 +162,7 @@ spec:
 
 第二个坑是 `dnsPolicy` 写成 `Default`（20.3）：DaemonSet 用了 `hostNetwork`，若漏掉 `ClusterFirstWithHostNet`，node-cache 容器自己解析 `kube-dns-upstream-service` 就会去问宿主机解析器，直接失败。
 
-## 20.6 一份可复制的 Corefile
+## 一份可复制的 Corefile
 
 下面这份 Corefile 用于**中心 CoreDNS**（服务发现 + 转发给外部验证器），不是 NodeLocal 的那份。
 
@@ -294,7 +294,7 @@ corp.example.internal:53 {
 
 **失败模式 / 回滚点**：server block 的域名必须与 `kubernetes` 插件的集群域不重叠，否则服务发现被遮蔽；写 `corp.example.internal:53` 时不要漏 `:53`。回滚同样是还原 ConfigMap 快照。另一个历史坑：`upstreamNameservers` 里列多个地址会被当成竞速/随机，迁移到 CoreDNS 时**不要**照抄成多个 `forward` 目标，按 20.1 的分工只留一个验证器入口。
 
-## 20.7 三种拓扑与取舍
+## 三种拓扑与取舍
 
 分工确定之后，Unbound 放在链路的哪一层仍有三个可行位置。下表所有地址都是教学示例。
 
@@ -333,7 +333,7 @@ unbound-control -c /etc/unbound/unbound.conf flush_zone dns.example.org
 
 **失败模式 / 回滚点**：`unbound-control` 没启用远程控制时只能重启实例刷缓存（第 22 章案例 ⑤）；`rollout restart` 会让该层短暂降级，滚动窗口内要保证 `serve-expired` 开着。回滚点同上：保留 ConfigMap 与 Unbound 配置快照。
 
-## 20.8 验收清单
+## 验收清单
 
 | 检查 | 命令 | 通过标准 |
 |---|---|---|

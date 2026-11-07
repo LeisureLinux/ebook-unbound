@@ -102,6 +102,9 @@ by [LeisureLinux](https://github.com/LeisureLinux) · 正文 **CC BY-SA 4.0** ·
 | 26 | [企业级大规模部署：anycast 与集群](book/src/26-anycast-cluster.md) | BGP 任播、Cookie 密钥滚动、缓存不共享、NIST 部署基线 |
 | 27 | [单播 DNS 与多播 DNS](book/src/27-mdns-dnssd.md) | mDNS / DNS-SD / Discovery Proxy / SRP，`.local` 与 `home.arpa.` 边界 |
 | 28 | [DNS 故障域隔离](book/src/28-fault-domain-isolation.md) | 2021 全球中断复盘：官方确认/外部观测/本书推论分列，六层隔离 |
+| 29 | [DNS 作为攻击面：隧道、扫描与资产暴露](book/src/29-dns-attack-surface.md) | 隧道外泄检测、massdns 类扫描、悬空 CNAME、Unbound 漏洞加固史 |
+| 30 | [DNS 里的信任数据](book/src/30-dns-trust-records.md) | SPF/DKIM/DMARC、autoconfig、SSHFP、ACME DNS-01、SVCB/HTTPS |
+| 31 | [可观测性栈](book/src/31-observability-stack.md) | dnstap + unbound-control + Prometheus/Grafana + eBPF + 告警 |
 
 ---
 
@@ -145,6 +148,13 @@ server:
 > （第 5 章）、`auto-trust-anchor-file` 需要初始化（第 10 章）、接口与 ACL 要改成你自己的网段。
 
 ---
+
+## 附录
+
+| 附录 | 内容 |
+|---|---|
+| [A1 RFC 清单](book/src/A1-rfc-index.md) | 全书引用的 89 份 RFC：名称、发布日期、状态、是否有效、描述对象（数据来自 RFC Editor 官方索引） |
+| [A2 缩略语](book/src/A2-glossary.md) | 按字母顺序，含 AD/DDNS 等同缩写在不同语境下的区分 |
 
 ## 合规框架映射
 

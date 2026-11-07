@@ -23,6 +23,12 @@ jobs:
       - name: Render colophon (version + changelog + history)
         run: python3 scripts/render_colophon.py
 
+      - name: Generate appendix A1 (RFC index from body text)
+        run: |
+          mkdir -p resources
+          curl -sSL --max-time 60 https://www.rfc-editor.org/rfc-index.txt -o resources/rfc-index.txt
+          python3 scripts/gen-rfc-index.py
+
       - name: Install pandoc + librsvg + python3
         run: |
           sudo apt-get update
@@ -56,16 +62,18 @@ jobs:
           rsvg-convert -w 1200 -h 1600 cover.svg -o cover.png
           ls -la cover.png
 
-      - name: Collect chapters (all 28 required for release)
+      - name: Collect chapters (all 31 required for release)
         id: chapters
         run: |
           cd book
           files="src/00-preface.md"
-          for n in $(seq -w 1 28); do
+          for n in $(seq -w 1 31); do
             f=$(ls src/${n}-*.md 2>/dev/null | head -1)
             if [ -z "$f" ]; then echo "::error::missing chapter ${n}-*.md"; exit 1; fi
             files="$files $f"
           done
+          # 附录 A1/A2 在版本信息之前
+          for f in src/A1-*.md src/A2-*.md; do [ -f "$f" ] && files="$files $f"; done
           c=$(ls src/99-*.md 2>/dev/null | head -1)
           [ -n "$c" ] && files="$files $c"
           echo "files=$files" >> "$GITHUB_OUTPUT"
@@ -124,6 +132,9 @@ jobs:
             --self-contained \
             ${{ steps.chapters.outputs.files }} \
             -o ../dist/unbound-dns-hardening.html
+
+      - name: Fix TOC format (parts / chapters / sections)
+        run: python3 scripts/fix-toc.py dist/unbound-dns-hardening.epub dist/unbound-dns-hardening.html
 
       - name: Prepare GitHub Pages site
         run: |
