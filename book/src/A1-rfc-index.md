@@ -17,16 +17,20 @@
 | [RFC 2219](https://www.rfc-editor.org/rfc/rfc2219) | Use of DNS Aliases for Network Services | Oct 1997 | BEST CURRENT PRACTICE | 有效 | DNS 基础 / 术语 / 实现 |
 | [RFC 2308](https://www.rfc-editor.org/rfc/rfc2308) | Negative Caching of DNS Queries (DNS NCACHE) | Mar 1998 | PROPOSED STANDARD（有修订） | 有效 | 缓存 / 应答语义 / EDNS |
 | [RFC 2535](https://www.rfc-editor.org/rfc/rfc2535) | Domain Name System Security Extensions | Mar 1999 | PROPOSED STANDARD（有修订） | 已被替代 | DNS 基础 / 术语 / 实现 |
+| [RFC 2544](https://www.rfc-editor.org/rfc/rfc2544) | Benchmarking Methodology for Network Interconnect Devices | Mar 1999 | INFORMATIONAL（有修订） | 有效 | 其他 / 网络基础设施 |
 | [RFC 2608](https://www.rfc-editor.org/rfc/rfc2608) | Service Location Protocol, Version 2 | Jun 1999 | PROPOSED STANDARD（有修订） | 有效 | 其他 / 网络基础设施 |
 | [RFC 2609](https://www.rfc-editor.org/rfc/rfc2609) | Service Templates and Service: Schemes | Jun 1999 | PROPOSED STANDARD | 有效 | 其他 / 网络基础设施 |
 | [RFC 2671](https://www.rfc-editor.org/rfc/rfc2671) | Extension Mechanisms for DNS (EDNS0) | Aug 1999 | PROPOSED STANDARD | 已被替代 | 缓存 / 应答语义 / EDNS |
 | [RFC 2673](https://www.rfc-editor.org/rfc/rfc2673) | Binary Labels in the Domain Name System | Aug 1999 | HISTORIC（有修订） | 已被替代 | DNS 基础 / 术语 / 实现 |
+| [RFC 2765](https://www.rfc-editor.org/rfc/rfc2765) | Stateless IP/ICMP Translation Algorithm (SIIT) | Feb 2000 | PROPOSED STANDARD | 已被替代 | 其他 / 网络基础设施 |
 | [RFC 3008](https://www.rfc-editor.org/rfc/rfc3008) | Domain Name System Security (DNSSEC) Signing Authority | Nov 2000 | PROPOSED STANDARD（有修订） | 已被替代 | DNSSEC / 信任链 |
 | [RFC 3090](https://www.rfc-editor.org/rfc/rfc3090) | DNS Security Extension Clarification on Zone Status | Mar 2001 | PROPOSED STANDARD（有修订） | 已被替代 | DNSSEC / 信任链 |
+| [RFC 3397](https://www.rfc-editor.org/rfc/rfc3397) | Dynamic Host Configuration Protocol (DHCP) Domain Search Option | Nov 2002 | PROPOSED STANDARD | 有效 | 动态更新 / 事务认证 |
 | [RFC 3445](https://www.rfc-editor.org/rfc/rfc3445) | Limiting the Scope of the KEY Resource Record (RR) | Dec 2002 | PROPOSED STANDARD | 已被替代 | 其他 / 网络基础设施 |
 | [RFC 3484](https://www.rfc-editor.org/rfc/rfc3484) | Default Address Selection for Internet Protocol version 6 (IPv6) | Mar 2003 | PROPOSED STANDARD | 已被替代 | IPv6 / 地址与 RA |
 | [RFC 3597](https://www.rfc-editor.org/rfc/rfc3597) | Handling of Unknown DNS Resource Record (RR) Types | Sep 2003 | PROPOSED STANDARD（有修订） | 有效 | DNS 基础 / 术语 / 实现 |
 | [RFC 3645](https://www.rfc-editor.org/rfc/rfc3645) | Generic Security Service Algorithm for Secret Key Transaction Authentication for DNS (GSS-TSIG) | Oct 2003 | PROPOSED STANDARD | 有效 | 动态更新 / 事务认证 |
+| [RFC 3646](https://www.rfc-editor.org/rfc/rfc3646) | DNS Configuration options for Dynamic Host Configuration Protocol for IPv6 (DHCPv6) | Dec 2003 | PROPOSED STANDARD | 有效 | IPv6 / 地址与 RA |
 | [RFC 3655](https://www.rfc-editor.org/rfc/rfc3655) | Redefinition of DNS Authenticated Data (AD) bit | Nov 2003 | PROPOSED STANDARD | 已被替代 | DNS 基础 / 术语 / 实现 |
 | [RFC 3658](https://www.rfc-editor.org/rfc/rfc3658) | Delegation Signer (DS) Resource Record (RR) | Dec 2003 | PROPOSED STANDARD（有修订） | 已被替代 | 其他 / 网络基础设施 |
 | [RFC 3755](https://www.rfc-editor.org/rfc/rfc3755) | Legacy Resolver Compatibility for Delegation Signer (DS) | May 2004 | PROPOSED STANDARD（有修订） | 已被替代 | DNS 基础 / 术语 / 实现 |
@@ -44,6 +48,7 @@
 | [RFC 4343](https://www.rfc-editor.org/rfc/rfc4343) | Domain Name System (DNS) Case Insensitivity Clarification | Jan 2006 | PROPOSED STANDARD（有修订） | 有效 | DNS 基础 / 术语 / 实现 |
 | [RFC 4431](https://www.rfc-editor.org/rfc/rfc4431) | The DNSSEC Lookaside Validation (DLV) DNS Resource Record | Feb 2006 | HISTORIC | 有效 | DNSSEC / 信任链 |
 | [RFC 4641](https://www.rfc-editor.org/rfc/rfc4641) | DNSSEC Operational Practices | Sep 2006 | INFORMATIONAL | 已被替代 | DNSSEC / 信任链 |
+| [RFC 4702](https://www.rfc-editor.org/rfc/rfc4702) | The Dynamic Host Configuration Protocol (DHCP) Client Fully Qualified Domain Name (FQDN) Option | Oct 2006 | PROPOSED STANDARD | 有效 | 动态更新 / 事务认证 |
 | [RFC 4861](https://www.rfc-editor.org/rfc/rfc4861) | Neighbor Discovery for IP version 6 (IPv6) | Sep 2007 | DRAFT STANDARD（有修订） | 有效 | IPv6 / 地址与 RA |
 | [RFC 4862](https://www.rfc-editor.org/rfc/rfc4862) | IPv6 Stateless Address Autoconfiguration | Sep 2007 | DRAFT STANDARD（有修订） | 有效 | IPv6 / 地址与 RA |
 | [RFC 4941](https://www.rfc-editor.org/rfc/rfc4941) | Privacy Extensions for Stateless Address Autoconfiguration in IPv6 | Sep 2007 | DRAFT STANDARD | 已被替代 | 查询隐私 / 加密传输 |
@@ -53,12 +58,18 @@
 | [RFC 5155](https://www.rfc-editor.org/rfc/rfc5155) | DNS Security (DNSSEC) Hashed Authenticated Denial of Existence | Mar 2008 | PROPOSED STANDARD（有修订） | 有效 | DNSSEC / 信任链 |
 | [RFC 5358](https://www.rfc-editor.org/rfc/rfc5358) | Preventing Use of Recursive Nameservers in Reflector Attacks | Oct 2008 | BEST CURRENT PRACTICE | 有效 | DNS 基础 / 术语 / 实现 |
 | [RFC 5452](https://www.rfc-editor.org/rfc/rfc5452) | Measures for Making DNS More Resilient against Forged Answers | Jan 2009 | PROPOSED STANDARD | 有效 | DNS 基础 / 术语 / 实现 |
+| [RFC 5625](https://www.rfc-editor.org/rfc/rfc5625) | DNS Proxy Implementation Guidelines | Aug 2009 | BEST CURRENT PRACTICE | 有效 | DNS 基础 / 术语 / 实现 |
 | [RFC 5737](https://www.rfc-editor.org/rfc/rfc5737) | IPv4 Address Blocks Reserved for Documentation | Jan 2010 | INFORMATIONAL | 有效 | 特殊用途域名 |
+| [RFC 5908](https://www.rfc-editor.org/rfc/rfc5908) | Network Time Protocol (NTP) Server Option for DHCPv6 | Jun 2010 | PROPOSED STANDARD | 有效 | 动态更新 / 事务认证 |
 | [RFC 5936](https://www.rfc-editor.org/rfc/rfc5936) | DNS Zone Transfer Protocol (AXFR) | Jun 2010 | PROPOSED STANDARD（有修订） | 有效 | DNS 基础 / 术语 / 实现 |
 | [RFC 6106](https://www.rfc-editor.org/rfc/rfc6106) | IPv6 Router Advertisement Options for DNS Configuration | Nov 2010 | PROPOSED STANDARD | 已被替代 | IPv6 / 地址与 RA |
+| [RFC 6146](https://www.rfc-editor.org/rfc/rfc6146) | Stateful NAT64: Network Address and Protocol Translation from IPv6 Clients to IPv4 Servers | Apr 2011 | PROPOSED STANDARD | 有效 | IPv6 / 地址与 RA |
+| [RFC 6147](https://www.rfc-editor.org/rfc/rfc6147) | DNS64: DNS Extensions for Network Address Translation from IPv6 Clients to IPv4 Servers | Apr 2011 | PROPOSED STANDARD | 有效 | IPv6 / 地址与 RA |
 | [RFC 6186](https://www.rfc-editor.org/rfc/rfc6186) | Use of SRV Records for Locating Email Submission/Access Services | Mar 2011 | PROPOSED STANDARD（有修订） | 有效 | 邮件 / 证书 / 公钥发布 |
 | [RFC 6376](https://www.rfc-editor.org/rfc/rfc6376) | DomainKeys Identified Mail (DKIM) Signatures | Sep 2011 | INTERNET STANDARD（有修订） | 有效 | 邮件 / 证书 / 公钥发布 |
+| [RFC 6570](https://www.rfc-editor.org/rfc/rfc6570) | URI Template | Mar 2012 | PROPOSED STANDARD | 有效 | 其他 / 网络基础设施 |
 | [RFC 6724](https://www.rfc-editor.org/rfc/rfc6724) | Default Address Selection for Internet Protocol Version 6 (IPv6) | Sep 2012 | PROPOSED STANDARD | 有效 | IPv6 / 地址与 RA |
+| [RFC 6731](https://www.rfc-editor.org/rfc/rfc6731) | Improved Recursive DNS Server Selection for Multi-Interfaced Nodes | Dec 2012 | PROPOSED STANDARD | 有效 | DNS 基础 / 术语 / 实现 |
 | [RFC 6761](https://www.rfc-editor.org/rfc/rfc6761) | Special-Use Domain Names | Feb 2013 | PROPOSED STANDARD | 有效 | 特殊用途域名 |
 | [RFC 6762](https://www.rfc-editor.org/rfc/rfc6762) | Multicast DNS | Feb 2013 | PROPOSED STANDARD | 有效 | 服务发现 / 多播 / DDR |
 | [RFC 6763](https://www.rfc-editor.org/rfc/rfc6763) | DNS-Based Service Discovery | Feb 2013 | PROPOSED STANDARD（有修订） | 有效 | 服务发现 / 多播 / DDR |
@@ -79,6 +90,7 @@
 | [RFC 7830](https://www.rfc-editor.org/rfc/rfc7830) | The EDNS(0) Padding Option | May 2016 | PROPOSED STANDARD | 有效 | 查询隐私 / 加密传输 |
 | [RFC 7858](https://www.rfc-editor.org/rfc/rfc7858) | Specification for DNS over Transport Layer Security (TLS) | May 2016 | PROPOSED STANDARD（有修订） | 有效 | 查询隐私 / 加密传输 |
 | [RFC 7871](https://www.rfc-editor.org/rfc/rfc7871) | Client Subnet in DNS Queries | May 2016 | INFORMATIONAL | 有效 | 查询隐私 / 加密传输 |
+| [RFC 7873](https://www.rfc-editor.org/rfc/rfc7873) | Domain Name System (DNS) Cookies | May 2016 | PROPOSED STANDARD（有修订） | 有效 | 查询隐私 / 加密传输 |
 | [RFC 7958](https://www.rfc-editor.org/rfc/rfc7958) | DNSSEC Trust Anchor Publication for the Root Zone | Aug 2016 | INFORMATIONAL | 已被替代 | DNSSEC / 信任链 |
 | [RFC 8020](https://www.rfc-editor.org/rfc/rfc8020) | NXDOMAIN: There Really Is Nothing Underneath | Nov 2016 | PROPOSED STANDARD | 有效 | 缓存 / 应答语义 / EDNS |
 | [RFC 8106](https://www.rfc-editor.org/rfc/rfc8106) | IPv6 Router Advertisement Options for DNS Configuration | Mar 2017 | PROPOSED STANDARD | 有效 | IPv6 / 地址与 RA |
@@ -86,12 +98,15 @@
 | [RFC 8310](https://www.rfc-editor.org/rfc/rfc8310) | Usage Profiles for DNS over TLS and DNS over DTLS | Mar 2018 | PROPOSED STANDARD | 有效 | 查询隐私 / 加密传输 |
 | [RFC 8314](https://www.rfc-editor.org/rfc/rfc8314) | Cleartext Considered Obsolete: Use of Transport Layer Security (TLS) for Email Submission and Access | Jan 2018 | PROPOSED STANDARD（有修订） | 有效 | 邮件 / 证书 / 公钥发布 |
 | [RFC 8375](https://www.rfc-editor.org/rfc/rfc8375) | Special-Use Domain 'home.arpa.' | May 2018 | PROPOSED STANDARD | 有效 | 特殊用途域名 |
+| [RFC 8415](https://www.rfc-editor.org/rfc/rfc8415) | Dynamic Host Configuration Protocol for IPv6 (DHCPv6) | Nov 2018 | PROPOSED STANDARD | 已被替代 | IPv6 / 地址与 RA |
 | [RFC 8461](https://www.rfc-editor.org/rfc/rfc8461) | SMTP MTA Strict Transport Security (MTA-STS) | Sep 2018 | PROPOSED STANDARD | 有效 | 邮件 / 证书 / 公钥发布 |
 | [RFC 8484](https://www.rfc-editor.org/rfc/rfc8484) | DNS Queries over HTTPS (DoH) | Oct 2018 | PROPOSED STANDARD | 有效 | 查询隐私 / 加密传输 |
 | [RFC 8499](https://www.rfc-editor.org/rfc/rfc8499) | DNS Terminology | Jan 2019 | BEST CURRENT PRACTICE | 已被替代 | DNS 基础 / 术语 / 实现 |
 | [RFC 8624](https://www.rfc-editor.org/rfc/rfc8624) | Algorithm Implementation Requirements and Usage Guidance for DNSSEC | Jun 2019 | PROPOSED STANDARD（有修订） | 已被替代 | DNSSEC / 信任链 |
+| [RFC 8683](https://www.rfc-editor.org/rfc/rfc8683) | Additional Deployment Guidelines for NAT64/464XLAT in Operator and Enterprise Networks | Nov 2019 | INFORMATIONAL | 有效 | 其他 / 网络基础设施 |
 | [RFC 8766](https://www.rfc-editor.org/rfc/rfc8766) | Discovery Proxy for Multicast DNS-Based Service Discovery | Jun 2020 | PROPOSED STANDARD | 有效 | 服务发现 / 多播 / DDR |
 | [RFC 8767](https://www.rfc-editor.org/rfc/rfc8767) | Serving Stale Data to Improve DNS Resiliency | Mar 2020 | PROPOSED STANDARD | 有效 | 缓存 / 应答语义 / EDNS |
+| [RFC 8914](https://www.rfc-editor.org/rfc/rfc8914) | Extended DNS Errors | Oct 2020 | PROPOSED STANDARD | 有效 | DNS 基础 / 术语 / 实现 |
 | [RFC 8932](https://www.rfc-editor.org/rfc/rfc8932) | Recommendations for DNS Privacy Service Operators | Oct 2020 | BEST CURRENT PRACTICE | 有效 | 查询隐私 / 加密传输 |
 | [RFC 8971](https://www.rfc-editor.org/rfc/rfc8971) | Bidirectional Forwarding Detection (BFD) for Virtual eXtensible Local Area Network (VXLAN) | Dec 2020 | INFORMATIONAL | 有效 | 其他 / 网络基础设施 |
 | [RFC 8978](https://www.rfc-editor.org/rfc/rfc8978) | Reaction of IPv6 Stateless Address Autoconfiguration (SLAAC) to Flash-Renumbering Events | Mar 2021 | INFORMATIONAL | 有效 | IPv6 / 地址与 RA |
