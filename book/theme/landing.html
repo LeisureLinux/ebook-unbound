@@ -11,7 +11,7 @@
 <link rel="canonical" href="https://leisurelinux.github.io/ebook-unbound/">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Unbound DNS 服务加固指南">
-<meta property="og:description" content="从递归解析器到加密、私有、IPv6-ready 的 DNS 基础设施。五篇二十四章，原创实战经验。">
+<meta property="og:description" content="从递归解析器到加密、私有、IPv6-ready 的 DNS 基础设施。五篇二十八章，原创实战经验。">
 <meta property="og:url" content="https://leisurelinux.github.io/ebook-unbound/">
 <meta property="og:locale" content="zh_CN">
 <meta name="twitter:card" content="summary_large_image">
@@ -66,7 +66,7 @@ a.inline{color:var(--accent)}
   <h1>Unbound DNS 服务加固指南</h1>
   <p class="sub">Unbound DNS Hardening — 从递归解析器到加密、私有、IPv6-ready 的 DNS 基础设施</p>
   <div class="badges">
-    <span>CC BY-SA 4.0</span><span>中文原创</span><span>五篇二十四章</span>
+    <span>CC BY-SA 4.0</span><span>中文原创</span><span>五篇二十八章</span>
     <span>NIST SP 800-81r3</span><span>IPv6 / Kubernetes</span>
   </div>
 
@@ -111,6 +111,14 @@ local-zone: "_dns.resolver.arpa." always_nodata</code></pre>
         DNS devolution 的名称劫持史、PAC 与 WPAD 的分层，以及为什么透明代理架构不该依赖它。</li>
     <li>第 24 章 <strong>Adhole</strong>：HOSTS / Adblock Plus / 原生 local-zone 等四类上游格式的转换，
         <code>local-zone</code> 与 <code>forward-zone</code> 的优先级，58 万条大表的原子生成与误伤排查。</li>
+  </ul>
+
+  <h2>v0.2.0 新增</h2>
+  <ul>
+    <li>第 25 章 内网 DDNS 与微软 DNS 对照 —— Unbound 明确不支持 RFC 2136 动态更新，三条架构绕行路径。</li>
+    <li>第 26 章 企业级大规模部署 —— anycast、DNS Cookie 密钥滚动、缓存不共享与 NIST 基线。</li>
+    <li>第 27 章 单播 DNS 与多播 DNS —— mDNS / DNS-SD / Discovery Proxy / SRP 的边界。</li>
+    <li>第 28 章 DNS 故障域隔离 —— 一次全球性中断的复盘，把「官方确认 / 外部观测 / 公开报道 / 本书推论」分列，给出六层隔离。</li>
   </ul>
 
   <h2>许可</h2>

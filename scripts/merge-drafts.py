@@ -2,7 +2,7 @@
 """merge-drafts.py — 把 resources/drafts/{A..F} 的章节合并进 book/src/。
 
 做的事：
-  1. 按文件名收集 01..24 章，校验 24 章齐全、文件名无重复；
+  1. 按文件名收集 01..28 章，校验 28 章齐全、文件名无重复；
   2. 统一标题：把 `# 第 N 章 标题` 改成 `# 标题`（Pandoc --number-sections 会再编号）；
   3. 校验每章有「本章要点」与「参考资料」；
   4. 校验最多到 ###（不出现 ####）；
@@ -32,7 +32,8 @@ EXPECTED = {
     "13": "query-privacy", "14": "encrypted-transport-routing",
     "15": "rfc-dns-basics", "16": "rfc-dnssec", "17": "rfc-privacy",
     "18": "rfc-ipv6-implementations", "19": "ipv6-deployment",
-    "20": "kubernetes-dns", "21": "lab-topology", "22": "failure-cases", "23": "wpad", "24": "adhole",
+    "20": "kubernetes-dns", "21": "lab-topology", "22": "failure-cases", "23": "wpad", "24": "adhole", "25": "ddns-msdns", "26": "anycast-cluster",
+              "27": "mdns-dnssd", "28": "fault-domain-isolation",
 }
 
 
@@ -55,7 +56,7 @@ def main() -> int:
                 dupes.append(f"{n}: {found[n].name} / {f.name}")
             found[n] = f
 
-    print(f"  找到 {len(found)}/24 章")
+    print(f"  找到 {len(found)}/28 章")
     missing = [n for n in EXPECTED if n not in found]
     if missing:
         print(f"  ❌ 缺章节: {', '.join(missing)}")

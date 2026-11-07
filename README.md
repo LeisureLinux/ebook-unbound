@@ -98,6 +98,10 @@ by [LeisureLinux](https://github.com/LeisureLinux) · 正文 **CC BY-SA 4.0** ·
 | 22 | [故障案例集](book/src/22-failure-cases.md) | 十个真实坑，统一「现象 → 误判 → 定位 → 根因 → 修复 → 验证」 |
 | 23 | [WPAD 与 PAC：自动代理发现的实践](book/src/23-wpad.md) | 1999 过期草案、DHCP 252、DNS devolution、PAC 与 WPAD 分层、安全边界 |
 | 24 | [Adhole：DNS 层过滤表的工程实践](book/src/24-adhole.md) | 四类上游格式与转换、`local-zone` 与 `forward-zone` 优先级、原子生成与误伤排查 |
+| 25 | [内网 DDNS 与微软 DNS 对照](book/src/25-ddns-msdns.md) | Unbound 不支持 RFC 2136；AD 安全动态更新；三条绕行路径 |
+| 26 | [企业级大规模部署：anycast 与集群](book/src/26-anycast-cluster.md) | BGP 任播、Cookie 密钥滚动、缓存不共享、NIST 部署基线 |
+| 27 | [单播 DNS 与多播 DNS](book/src/27-mdns-dnssd.md) | mDNS / DNS-SD / Discovery Proxy / SRP，`.local` 与 `home.arpa.` 边界 |
+| 28 | [DNS 故障域隔离](book/src/28-fault-domain-isolation.md) | 2021 全球中断复盘：官方确认/外部观测/本书推论分列，六层隔离 |
 
 ---
 
