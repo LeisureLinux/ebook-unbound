@@ -61,7 +61,7 @@ jobs:
         run: |
           cd book
           files="src/00-preface.md"
-          for n in $(seq -w 1 22); do
+          for n in $(seq -w 1 24); do
             f=$(ls src/${n}-*.md 2>/dev/null | head -1)
             if [ -z "$f" ]; then echo "::error::missing chapter ${n}-*.md"; exit 1; fi
             files="$files $f"

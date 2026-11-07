@@ -23,6 +23,7 @@ RULES: list[tuple[str, str, str]] = [
     ("真实 IPv4", r"\b(43\.135\.161\.\d+|124\.222\.231\.\d+|117\.185\.174\.\d+|223\.5\.5\.5|119\.29\.29\.29)\b", "公网 IP"),
     ("真实 v6 前缀", r"(?i)\b(2409:8a1e|240d:c000|2402:4e00|2404:6800)\b", "运营商 / 云 v6 前缀"),
     ("真实主机名", r"(?i)\b(wpad-02|wpad\.lan|mail2|mail3|happydl\.lan)\b", "内部主机名"),
+    ("遗留代理名", r"(?i)\b(wpad\.lan|goproxy|wechat-goproxy)\b", "WPAD 章必须泛化, 用 wpad.example.net"),
     ("token", r"\b[0-9a-f]{40,64}\b", "疑似 API token / webhook key"),
     ("代理端口遗留", r"(?i)\bhttps?://wpad(?:\.lan|-02)[:\d]*\b", "旧代理地址"),
 ]

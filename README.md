@@ -96,6 +96,8 @@ by [LeisureLinux](https://github.com/LeisureLinux) · 正文 **CC BY-SA 4.0** ·
 | 20 | [Kubernetes 中的 DNS 选型](book/src/20-kubernetes-dns.md) | CoreDNS 与 Unbound 的分工、`ndots`、NodeLocal DNSCache、三种拓扑 |
 | 21 | [综合实验：一台网关 + 一台云主机](book/src/21-lab-topology.md) | 完整教学拓扑、失败注入、验收命令清单 |
 | 22 | [故障案例集](book/src/22-failure-cases.md) | 十个真实坑，统一「现象 → 误判 → 定位 → 根因 → 修复 → 验证」 |
+| 23 | [WPAD 与 PAC：自动代理发现的实践](book/src/23-wpad.md) | 1999 过期草案、DHCP 252、DNS devolution、PAC 与 WPAD 分层、安全边界 |
+| 24 | [Adhole：DNS 层过滤表的工程实践](book/src/24-adhole.md) | 四类上游格式与转换、`local-zone` 与 `forward-zone` 优先级、原子生成与误伤排查 |
 
 ---
 

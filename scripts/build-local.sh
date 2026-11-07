@@ -7,12 +7,12 @@ OUT=dist
 mkdir -p "$OUT"
 
 SRC=(book/src/00-preface.md)
-for n in $(seq -w 1 22); do
+for n in $(seq -w 1 24); do
   f=$(ls book/src/${n}-*.md 2>/dev/null | head -1)
   [ -n "$f" ] && SRC+=("$f") || echo "  ⚠️ 跳过缺失章节 ${n}-*.md（草稿尚未合并）"
 done
 f=$(ls book/src/99-*.md 2>/dev/null | head -1); [ -n "$f" ] && SRC+=("$f")
-echo "  章节数: ${#SRC[@]}（全书 22 章 + 前言 + 版本信息）"
+echo "  章节数: ${#SRC[@]}（全书 24 章 + 前言 + 版本信息）"
 
 # 渲染封面（CJK 字体）
 if [ -f book/cover.svg ]; then
