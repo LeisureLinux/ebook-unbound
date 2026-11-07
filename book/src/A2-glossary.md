@@ -26,6 +26,7 @@
 | DANE | DNS-based Authentication of Named Entities | 用 DNSSEC 保护的 TLSA 记录绑定证书 |
 | DDNS | Dynamic DNS | 动态域名；常指 [RFC 2136] UPDATE 或公网前缀更新脚本（两者不同） |
 | DDR | Discovery of Designated Resolvers | [RFC 9462]，`_dns.resolver.arpa` 自动发现加密解析器 |
+| delv | DNSSEC validation tool (BIND) | 从验证器视角看应答为何通过/为何 bogus |
 | DHCID | DHCP Client Identifier | DHCP 代注册时防止名字被冒用的记录 |
 | DHCP | Dynamic Host Configuration Protocol | 动态主机配置协议；option 252 与 WPAD 相关 |
 | DHCPv6 | Dynamic Host Configuration Protocol for IPv6 | 下发 option 23/24/56 等，[RFC 3646] / [RFC 5908] 一类 |
@@ -35,15 +36,19 @@
 | DNS-SD | DNS-Based Service Discovery | 用 PTR/SRV/TXT 做服务发现，[RFC 6763] |
 | DNS64 | DNS64 | [RFC 6147]，从 A 记录合成 AAAA 供 NAT64 使用 |
 | dnstap | — | DNS 查询/应答的结构化日志协议 |
+| dnstracer | — | 逐级追踪委派链；名字是 dnstracer，不是 dnstrace |
 | DoH | DNS over HTTPS | [RFC 8484]，DNS 报文走 HTTPS |
 | DoQ | DNS over Dedicated QUIC Connections | [RFC 9250] |
 | DoT | DNS over TLS | [RFC 7858]，端口 853 |
+| drill | DNS lookup tool (ldns) | NLnet Labs 的 ldns 工具，可追 DNSSEC 链 |
 | DS | Delegation Signer | 父区里对子区 KSK 的哈希，DNSSEC 信任链的一环 |
 | eBPF | extended Berkeley Packet Filter | 内核可编程观测；不经应用改代码即可看 UDP/53 与丢包 |
 | ECH | Encrypted Client Hello | TLS ClientHello 加密；可由 HTTPS 记录发布公钥 |
 | ECS | EDNS Client Subnet | [RFC 7871]，把客户端网段带给权威，隐私代价明显 |
 | EDNS(0) | Extension Mechanisms for DNS | [RFC 6891]；`edns-buffer-size`、DO 位、Cookie 都在这里 |
 | fake-ip | — | 代理客户端用保留段占位地址延迟「域名→IP」映射（198.18.0.0/15 为常见示例段） |
+| gai.conf | getaddrinfo configuration | 影响 [RFC 6724] 下的地址排序与 getaddrinfo 返回顺序 |
+| getaddrinfo | — | libc 名字解析接口；返回列表是**策略排序**，不是可用性排序 |
 | GSS-TSIG | Generic Security Service TSIG | [RFC 3645]，微软安全动态更新用 Kerberos 协商 |
 | HINFO | Host Information | 主机信息记录，现代基本弃用 |
 | HTTPDNS | — | 厂商私有 HTTP/JSON 查询接口，**不等于** [RFC 8484] DoH |
@@ -60,6 +65,7 @@
 | NIST | National Institute of Standards and Technology | 美国 NIST，SP 800-81r3 发布方 |
 | NSEC / NSEC3 | Next Secure (v3) | DNSSEC 的"否认存在"证明；NSEC3 用哈希名 |
 | NSEC walking | — | 借 DNSSEC 否认存在记录枚举签名区名字 |
+| NSS | Name Service Switch | `/etc/nsswitch.conf` 决定 getent 先读 hosts 还是 DNS |
 | NXDOMAIN | Non-Existent Domain | 名字不存在的应答码 |
 | ODoH | Oblivious DoH | [RFC 9230]，relay 与 target 分离的两跳加密解析 |
 | OOB | Out-of-Band | 带外管理通道 |
@@ -71,12 +77,15 @@
 | RCODE | Response Code | DNS 应答码（NOERROR / NXDOMAIN / SERVFAIL 等） |
 | RD | Recursion Desired | DNS 报文标志位：客户端请求递归 |
 | RDNSS / DNSSL | Recursive DNS Server / DNS Search List | [RFC 8106] 的 RA 选项，与 DHCPv6 23/24 并行 |
+| resolvdns | — | 一类 SSH/代理客户端的 DNS 归属开关（yes 交给对端 / no 本地解析）；OpenSSH 无同名选项 |
+| resolvectl | — | systemd-resolved 的查询/状态命令（未装时读 /etc/resolv.conf） |
 | RPZ | Response Policy Zone | 基于策略改写/阻断应答 |
 | RPZ | Response Policy Zone | 策略改写/阻断应答，蜜罐 sinkhole 常用 |
 | RRL | Response Rate Limiting | 权威侧应答限速，抑制放大与扫描 |
 | RRSIG | Resource Record Signature | DNSSEC 签名记录 |
 | sinkhole | — | 把恶意/诱饵域导向受控解析器以记录查询 |
 | SLP | Service Location Protocol | [RFC 2608]，WPAD 草案里的发现机制之一 |
+| socks5h | SOCKS5 with remote hostname | curl 中把主机名交给代理解析；`socks5://` 是本地解析 |
 | SPF | Sender Policy Framework | 邮件发件方授权，TXT 记录 |
 | SRP | Service Registration Protocol | [RFC 9665]，纯单播的 DNS-SD 注册 |
 | SRV | Service Location | `_service._proto` 形式的服务定位记录 |

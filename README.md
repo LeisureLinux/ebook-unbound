@@ -109,6 +109,7 @@ by [LeisureLinux](https://github.com/LeisureLinux) · 正文 **CC BY-SA 4.0** ·
 | 33 | [DHCP 与 DNS 的交接面](book/src/33-dhcp-dns.md) | option 6/15/119/81/252、DHCPv6 23/24/56、动态更新注入攻防 |
 | 34 | [红队视角的 DNS 侦察](book/src/34-redteam-recon.md) | 侦察链、工具形态、观测信号、授权测试纪律 |
 | 35 | [DNS 蜜罐与被动观测](book/src/35-dns-honeypot.md) | 假权威 / sinkhole / 被动 DNS，喂回告警闭环 |
+| 36 | [DNS 故障排查工具箱](book/src/36-troubleshooting.md) | 六层排查顺序、getaddrinfo/RFC 6724 案例、delv/drill/dnstracer、决策表与「哪条命令会骗你」 |
 
 ---
 
