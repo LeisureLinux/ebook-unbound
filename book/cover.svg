@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1600" viewBox="0 0 1200 1600">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0d2137"/>
+      <stop offset="100%" stop-color="#123b52"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#a7f3d0"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="1600" fill="url(#bg)"/>
+
+  <!-- DNS 层级示意：根 -> TLD -> 权威 -> 验证器 -->
+  <g fill="none" stroke="url(#accent)" stroke-width="3" opacity="0.85">
+    <circle cx="600" cy="360" r="34"/>
+    <circle cx="600" cy="500" r="26"/>
+    <circle cx="600" cy="620" r="20"/>
+    <path d="M600 394 L600 474 M600 526 L600 600"/>
+    <path d="M600 640 C600 720 400 720 400 800 M600 640 C600 720 800 720 800 800"/>
+  </g>
+  <g fill="#a7f3d0" opacity="0.9">
+    <circle cx="400" cy="810" r="12"/>
+    <circle cx="800" cy="810" r="12"/>
+  </g>
+  <g fill="#e2e8f0" font-family="DejaVu Sans, Noto Sans CJK SC, sans-serif" font-size="22" opacity="0.72">
+    <text x="660" y="372">root</text>
+    <text x="642" y="508">TLD</text>
+    <text x="636" y="628">auth</text>
+    <text x="300" y="850">stub</text>
+    <text x="826" y="850">validator</text>
+  </g>
+
+  <!-- 加密链路 -->
+  <g stroke="#38bdf8" stroke-width="5" opacity="0.55">
+    <line x1="150" y1="1010" x2="1050" y2="1010" stroke-dasharray="18 14"/>
+  </g>
+  <g fill="#7dd3fc" font-family="DejaVu Sans Mono, monospace" font-size="26" opacity="0.85">
+    <text x="150" y="1080">DNSSEC · DoT · DoH · QMIN</text>
+  </g>
+
+  <!-- 标题 -->
+  <g font-family="Noto Serif CJK SC, Noto Sans CJK SC, sans-serif">
+    <text x="110" y="1240" fill="#f8fafc" font-size="86" font-weight="bold">Unbound DNS</text>
+    <text x="110" y="1350" fill="#f8fafc" font-size="86" font-weight="bold">服务加固指南</text>
+    <text x="112" y="1424" fill="#a7f3d0" font-size="30">从递归解析器到加密、私有、IPv6-ready 的 DNS</text>
+  </g>
+
+  <line x1="110" y1="1468" x2="1090" y2="1468" stroke="url(#accent)" stroke-width="4"/>
+  <g fill="#94a3b8" font-family="DejaVu Sans, Noto Sans CJK SC, sans-serif" font-size="26">
+    <text x="110" y="1524">LeisureLinux</text>
+    <text x="880" y="1524">CC BY-SA 4.0</text>
+  </g>
+</svg>

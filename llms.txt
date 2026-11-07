@@ -1,0 +1,63 @@
+# Unbound DNS 服务加固指南
+
+> 中文原创开源电子书：以 Unbound 为主线，讲透递归解析器的角色划分、配置方法、安全加固与协议理论。
+> 覆盖 DNSSEC、DoT/DoH、QNAME minimisation、NIST SP 800-81r3 威胁模型、IPv6 RA/RDNSS、Kubernetes DNS 选型。
+> 作者 LeisureLinux · 正文 CC BY-SA 4.0 · 构建脚本 MIT · 2026 年 11 月。
+
+## 项目
+
+- [GitHub 仓库](https://github.com/LeisureLinux/ebook-unbound)
+- [在线阅读](https://leisurelinux.github.io/ebook-unbound/)
+- [PDF](https://leisurelinux.github.io/ebook-unbound/unbound-dns-hardening.pdf)
+- [ePub](https://leisurelinux.github.io/ebook-unbound/unbound-dns-hardening.epub)
+- [README](https://github.com/LeisureLinux/ebook-unbound/blob/main/README.md)
+- [LICENSE](https://github.com/LeisureLinux/ebook-unbound/blob/main/LICENSE)
+
+## 目录
+
+- [第一篇 认识 DNS 与 Unbound](https://github.com/LeisureLinux/ebook-unbound/tree/main/book/src)
+  - 第 1 章 Unbound 的历史演进
+  - 第 2 章 DNS 基础与主流实现横评（BIND / dnsmasq / CoreDNS / NSD / PowerDNS / Knot Resolver）
+  - 第 3 章 存根、缓存、转发、递归：四种角色
+- [第二篇 按角色配置 Unbound](https://github.com/LeisureLinux/ebook-unbound/tree/main/book/src)
+  - 第 4 章 缓存解析器：最小可用配置
+  - 第 5 章 转发器：单上游、加密上游、fail-closed
+  - 第 6 章 递归解析器与本地根区镜像
+  - 第 7 章 多实例、缓存与可观测性
+- [第三篇 加固](https://github.com/LeisureLinux/ebook-unbound/tree/main/book/src)
+  - 第 8 章 威胁模型与 NIST SP 800-81r3 基线
+  - 第 9 章 最小暴露面与访问控制
+  - 第 10 章 DNSSEC 验证：信任锚、放行与拒绝
+  - 第 11 章 DoT：端口 853 的服务端与客户端
+  - 第 12 章 DoH：与 Web 服务共存的加密解析
+  - 第 13 章 查询隐私：QMIN、防降级与 DDR 压制
+  - 第 14 章 加密通道选路与 fail-closed 工程
+- [第四篇 RFC 与协议理论](https://github.com/LeisureLinux/ebook-unbound/tree/main/book/src)
+  - 第 15 章 DNS 基础 RFC 族
+  - 第 16 章 DNSSEC RFC 族
+  - 第 17 章 加密与隐私 RFC 族
+  - 第 18 章 IPv6 / RA / RDNSS RFC 族与实现差异
+- [第五篇 工程实践](https://github.com/LeisureLinux/ebook-unbound/tree/main/book/src)
+  - 第 19 章 IPv6 部署：RA、RDNSS、ULA 与前缀轮换
+  - 第 20 章 Kubernetes 中的 DNS 选型
+  - 第 21 章 综合实验：一台网关 + 一台云主机
+  - 第 22 章 故障案例集
+
+## 核心主张
+
+- DNSSEC 保证**数据完整性与来源认证**，DoT/DoH/DoQ 保证**传输加密与链路隐私**，两者不互相替代。
+- 转发器与验证器是两种角色：给转发器配 `auto-trust-anchor-file` 会导致 trust anchor 无法 priming，间歇性全量 SERVFAIL。
+- unbound 多个 `forward-addr` 是**并发竞速取最快**而非主备，会让过滤表失效。
+- `qname-minimisation-strict: yes` 会撞上违反 RFC 8020 的 CDN 区，改回 `no` 并逐层刷负缓存才能恢复。
+- 全屋无污染 DNS 的机制是 **RA 广告自己的 RDNSS**，不需要在光猫里配任何 DNS。
+- 排查 DNS / 网络故障：**先看 nftables 规则，再怀疑别的**。
+
+## 配套工具
+
+- [scripts/unbound-audit.sh](https://github.com/LeisureLinux/ebook-unbound/blob/main/scripts/unbound-audit.sh)：静态检查 `unbound.conf` 是否违反加固基线。
+
+## 可选参考（外部链接，各自保留自己的许可）
+
+- [NLnet Labs Unbound 官方文档](https://unbound.docs.nlnetlabs.nl/en/latest/)（CC BY 3.0）
+- [NIST SP 800-81r3](https://doi.org/10.6028/NIST.SP.800-81r3)（美国政府作品）
+- [RFC Editor](https://www.rfc-editor.org/)

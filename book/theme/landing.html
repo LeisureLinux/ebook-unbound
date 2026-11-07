@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Unbound DNS 服务加固指南 | 开源电子书</title>
+<meta name="description" content="中文原创开源电子书：以 Unbound 为主线，讲透递归解析器配置、DNSSEC、DoT/DoH、QNAME minimisation、NIST SP 800-81r3、IPv6 RA/RDNSS 与 Kubernetes DNS 选型。">
+<meta name="keywords" content="Unbound, DNS, DNSSEC, DoT, DoH, QNAME minimisation, NIST SP 800-81, IPv6, RDNSS, nftables, CoreDNS, Kubernetes, DNS privacy, 递归解析器">
+<meta name="author" content="LeisureLinux">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://leisurelinux.github.io/ebook-unbound/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Unbound DNS 服务加固指南">
+<meta property="og:description" content="从递归解析器到加密、私有、IPv6-ready 的 DNS 基础设施。五篇二十二章，原创实战经验。">
+<meta property="og:url" content="https://leisurelinux.github.io/ebook-unbound/">
+<meta property="og:locale" content="zh_CN">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Unbound DNS 服务加固指南">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Book",
+  "name": "Unbound DNS 服务加固指南",
+  "alternateName": "Unbound DNS Hardening",
+  "author": {"@type": "Organization", "name": "LeisureLinux", "url": "https://github.com/LeisureLinux"},
+  "datePublished": "2026-11",
+  "description": "覆盖 Unbound 历史与横评、按角色配置、DNSSEC / DoT / DoH 加固、RFC 族理论、IPv6 与 Kubernetes DNS 的中文原创开源电子书。",
+  "inLanguage": "zh-CN",
+  "license": "https://creativecommons.org/licenses/by-sa/4.0/",
+  "url": "https://leisurelinux.github.io/ebook-unbound/",
+  "isAccessibleForFree": true,
+  "publisher": {"@type": "Organization", "name": "LeisureLinux"},
+  "about": [
+    {"@type": "Thing", "name": "DNS"},
+    {"@type": "Thing", "name": "Unbound"},
+    {"@type": "Thing", "name": "DNSSEC"},
+    {"@type": "Thing", "name": "DNS Privacy"},
+    {"@type": "Thing", "name": "IPv6"}
+  ]
+}
+</script>
+<style>
+:root{--fg:#e8eef4;--bg:#0d2137;--card:#123b52;--accent:#7dd3fc;--muted:#9fb3c8}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Noto Sans CJK SC",sans-serif;line-height:1.75}
+.wrap{max-width:860px;margin:0 auto;padding:3rem 1.5rem}
+h1{font-size:2.3rem;line-height:1.25;margin:0 0 .4em;color:#f8fafc}
+.sub{color:var(--muted);font-size:1.05rem;margin-bottom:2rem}
+.badges{margin:1.2rem 0 2.2rem}
+.badges span{display:inline-block;background:var(--card);border:1px solid #2a5a75;border-radius:6px;padding:.25em .7em;margin:0 .4em .4em 0;font-size:.85rem;color:var(--accent)}
+.links{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin:2rem 0}
+.links a{display:block;background:var(--card);border:1px solid #2a5a75;border-radius:10px;padding:1.1rem;text-decoration:none;color:var(--fg);font-weight:600}
+.links a:hover{border-color:var(--accent);color:var(--accent)}
+.links small{display:block;color:var(--muted);font-weight:400;margin-top:.3em}
+h2{font-size:1.35rem;margin-top:2.4em;border-bottom:1px solid #2a5a75;padding-bottom:.3em}
+p{color:#dbe7f0}
+code{background:#0a1a2a;padding:.12em .35em;border-radius:3px;color:var(--accent);font-size:.9em}
+pre{background:#0a1a2a;border:1px solid #2a5a75;border-radius:8px;padding:1rem;overflow-x:auto;color:#dbe7f0;font-size:.88rem}
+ul{color:#dbe7f0}
+footer{margin-top:3rem;padding-top:1.2rem;border-top:1px solid #2a5a75;color:var(--muted);font-size:.9rem}
+a.inline{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Unbound DNS 服务加固指南</h1>
+  <p class="sub">Unbound DNS Hardening — 从递归解析器到加密、私有、IPv6-ready 的 DNS 基础设施</p>
+  <div class="badges">
+    <span>CC BY-SA 4.0</span><span>中文原创</span><span>五篇二十二章</span>
+    <span>NIST SP 800-81r3</span><span>IPv6 / Kubernetes</span>
+  </div>
+
+  <div class="links">
+    <a href="unbound-dns-hardening.html">🌐 在线阅读<small>独立 HTML，含完整目录</small></a>
+    <a href="unbound-dns-hardening.pdf">📄 PDF<small>A4，XeLaTeX 排版</small></a>
+    <a href="unbound-dns-hardening.epub">📱 ePub<small>iBooks / 微信读书 / Calibre</small></a>
+    <a href="https://github.com/LeisureLinux/ebook-unbound">⌨️ 源码<small>Markdown 全文与构建脚本</small></a>
+  </div>
+
+  <h2>这本书解决什么</h2>
+  <ul>
+    <li>一台解析器凭什么相信拿到的答案？链路上谁看得见你在查什么？</li>
+    <li><strong>DNSSEC（完整性）</strong> 与 <strong>DoT/DoH（传输加密）</strong> 各自防住了什么，为什么不能互相替代。</li>
+    <li>为什么 <code>qname-minimisation-strict: yes</code> 会让整站 CSS/JS 全部解析失败。</li>
+    <li>为什么转发器上配 <code>auto-trust-anchor-file</code> 会间歇性全量 SERVFAIL。</li>
+    <li>全屋无污染 DNS 的机制是 RA 广告自己的 RDNSS，不需要碰光猫的 DNS 设置。</li>
+    <li>Kubernetes 里 CoreDNS 与 Unbound 各管什么。</li>
+  </ul>
+
+  <h2>一条贯穿全书的经验</h2>
+  <p>排查 DNS / 网络故障，<strong>先看 nftables 规则，再怀疑别的</strong>。书中多次「上游不响应」的事故，
+  根因都在策略网关的 <code>output-tproxy</code>：本机解析器出向 53 被自己的 <code>hijack-dns</code> 吃掉，
+  或 WireGuard 自己的 <code>udp sport 51820</code> 回包被链尾 mark 规则送进代理。</p>
+
+  <h2>加固基线速览</h2>
+  <pre><code>edns-buffer-size: 1232
+qname-minimisation: yes
+qname-minimisation-strict: no
+val-permissive-mode: no
+harden-dnssec-stripped: yes
+harden-glue: yes
+serve-expired: yes
+local-zone: "_dns.resolver.arpa." always_nodata</code></pre>
+  <p>完整解释、验证命令与回滚点见第三篇。也可用
+  <a class="inline" href="https://github.com/LeisureLinux/ebook-unbound/blob/main/scripts/unbound-audit.sh">scripts/unbound-audit.sh</a>
+  静态检查一份 <code>unbound.conf</code>。</p>
+
+  <h2>许可</h2>
+  <p>正文以 <a class="inline" href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a> 发布，
+  构建脚本为 MIT。所有示例地址取自 RFC 5737 / RFC 3849 文档段，不指向任何真实服务。</p>
+
+  <footer>LeisureLinux · 2026 · <a class="inline" href="llms.txt">llms.txt</a></footer>
+</div>
+</body>
+</html>

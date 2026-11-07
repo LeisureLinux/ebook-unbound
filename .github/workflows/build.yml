@@ -1,0 +1,169 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    name: Build PDF / ePub / HTML
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Render colophon (version + changelog + history)
+        run: python3 scripts/render_colophon.py
+
+      - name: Install pandoc + librsvg + python3
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends pandoc python3 librsvg2-bin
+          pandoc --version | head -1
+          rsvg-convert --version
+
+      - name: Install TeX Live (XeLaTeX) + CJK fonts
+        run: |
+          sudo apt-get install -y --no-install-recommends \
+            texlive-xetex \
+            texlive-latex-recommended \
+            texlive-latex-extra \
+            texlive-fonts-recommended \
+            texlive-fonts-extra \
+            texlive-lang-chinese \
+            fonts-noto-cjk \
+            fonts-noto-cjk-extra \
+            fontconfig \
+            lmodern
+
+      - name: Show tool versions
+        run: |
+          pandoc --version | head -1
+          xelatex --version | head -1
+          fc-list :lang=zh-cn | head -5
+
+      - name: Render cover SVG -> PNG (with CJK font)
+        run: |
+          cd book
+          rsvg-convert -w 1200 -h 1600 cover.svg -o cover.png
+          ls -la cover.png
+
+      - name: Collect chapters (strict: all 22 required for release)
+        id: chapters
+        run: |
+          cd book
+          files="src/00-preface.md"
+          for n in $(seq -w 1 22); do
+            f=$(ls src/${n}-*.md 2>/dev/null | head -1)
+            if [ -z "$f" ]; then echo "::error::missing chapter ${n}-*.md"; exit 1; fi
+            files="$files $f"
+          done
+          c=$(ls src/99-*.md 2>/dev/null | head -1)
+          [ -n "$c" ] && files="$files $c"
+          echo "files=$files" >> "$GITHUB_OUTPUT"
+          echo "  chapters: $(echo $files | wc -w) files"
+          # 主分支推送时跑一次全书验收（构建前），缺章/格式/脱敏问题提前暴露
+          python3 ../scripts/verify-book.py --skip-artifacts || exit 1
+
+      - name: Build PDF
+        run: |
+          mkdir -p dist
+          cd book
+          pandoc \
+            --pdf-engine=xelatex \
+            --metadata-file=metadata.yml \
+            --include-in-header=theme/latex-header.tex \
+            --toc --toc-depth=2 \
+            --number-sections \
+            --from=markdown+smart+footnotes+raw_attribute \
+            --resource-path=src \
+            -V documentclass=book \
+            -V papersize=a4 \
+            ${{ steps.chapters.outputs.files }} \
+            -o ../dist/unbound-dns-hardening.pdf
+
+      - name: Build ePub
+        run: |
+          mkdir -p dist
+          cd book
+          pandoc \
+            --to=epub3 \
+            --metadata-file=metadata.yml \
+            --css=theme/epub.css \
+            --toc --toc-depth=3 \
+            --number-sections \
+            --from=markdown+smart+footnotes+raw_attribute \
+            --resource-path=src \
+            --epub-cover-image=cover.png \
+            ${{ steps.chapters.outputs.files }} \
+            -o ../dist/unbound-dns-hardening.epub
+
+      - name: Strip ePub landmarks nav (post-processing)
+        run: python3 scripts/strip_landmarks.py
+
+      - name: Build HTML (standalone)
+        run: |
+          mkdir -p dist
+          cd book
+          pandoc \
+            --to=html5 --standalone \
+            --metadata-file=metadata.yml \
+            --toc --toc-depth=3 \
+            --number-sections \
+            --from=markdown+smart+footnotes+raw_attribute \
+            --resource-path=src \
+            --css=theme/html.css \
+            --self-contained \
+            ${{ steps.chapters.outputs.files }} \
+            -o ../dist/unbound-dns-hardening.html
+
+      - name: Prepare GitHub Pages site
+        run: |
+          mkdir -p site
+          cp dist/unbound-dns-hardening.pdf  site/unbound-dns-hardening.pdf
+          cp dist/unbound-dns-hardening.epub site/unbound-dns-hardening.epub
+          cp dist/unbound-dns-hardening.html site/unbound-dns-hardening.html
+          cp book/theme/landing.html  site/index.html
+          cp book/theme/robots.txt    site/robots.txt
+          cp book/theme/sitemap.xml   site/sitemap.xml
+          cp llms.txt                 site/llms.txt
+          mkdir -p site/.well-known
+          cp llms.txt site/.well-known/llms.txt
+
+      - name: Upload Pages artifact (always)
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Deploy to GitHub Pages
+        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Upload build artifacts (PDF + ePub)
+        uses: actions/upload-artifact@v4
+        with:
+          name: unbound-dns-hardening-${{ github.ref_name }}
+          path: |
+            dist/unbound-dns-hardening.pdf
+            dist/unbound-dns-hardening.epub
+          retention-days: 30
+
+      - name: Attach to GitHub Release (on tags only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          generate_release_notes: true
+          files: |
+            dist/unbound-dns-hardening.pdf
+            dist/unbound-dns-hardening.epub

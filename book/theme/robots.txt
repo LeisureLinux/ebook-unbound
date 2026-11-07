@@ -1,0 +1,7 @@
+# robots.txt for GitHub Pages site
+# https://leisurelinux.github.io/ebook-unbound/
+
+User-agent: *
+Allow: /
+
+Sitemap: https://leisurelinux.github.io/ebook-unbound/sitemap.xml

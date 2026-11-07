@@ -1,0 +1,43 @@
+# =============================================================
+# ebook-unbound — gitignore
+# =============================================================
+
+# ⚠️ resources/ 是本地写作参考材料与并行写手草稿，
+#    含第三方 PDF/EPUB（各自许可）、写手规范与内部草稿，
+#    一律不进公开仓库。
+resources/
+
+# Build artifacts（与 GitHub Actions 的本地一致命令）
+dist/
+build/
+*.pdf
+*.epub
+*.mobi
+*.azw*
+
+# But track the canonical outputs that are checked-in intentionally
+!book/dist/
+
+# Pandoc temp files
+*.tmp
+*.aux
+*.log
+*.toc
+*.out
+
+# Editor / OS noise
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# Local secrets (if you ever embed tokens/keys in examples)
+*.local
+.env
+
+# Notes / scratch
+drafts/
+scratch/

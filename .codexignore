@@ -1,0 +1,3 @@
+# ebook-ssh-hardening: ignore git history and logs
+.git/
+*.log

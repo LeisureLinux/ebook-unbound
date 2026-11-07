@@ -1,0 +1,42 @@
+---
+title: "Unbound DNS 服务加固指南"
+subtitle: "Unbound DNS Hardening — From Recursive Resolver to Encrypted, Private, IPv6-Ready DNS"
+author: "LeisureLinux"
+date: "2026年11月"
+lang: "zh-CN"
+publisher: "LeisureLinux"
+subject:
+  - "DNS"
+  - "Unbound"
+  - "DNSSEC"
+  - "IPv6"
+  - "Kubernetes"
+  - "Network Security"
+  - "Linux"
+keywords:
+  - "unbound"
+  - "dns"
+  - "dnssec"
+  - "dot"
+  - "doh"
+  - "doq"
+  - "qname-minimisation"
+  - "serve-stale"
+  - "rdnss"
+  - "ipv6"
+  - "nftables"
+  - "nist-sp-800-81"
+  - "coredns"
+  - "kubernetes"
+  - "recursive-resolver"
+  - "dns-privacy"
+description: |
+  开源中文电子书：以 Unbound 为主线，讲透递归解析器的角色划分、配置方法、
+  安全加固与协议理论。覆盖 DNSSEC 验证、DoT/DoH 加密传输、QNAME minimisation、
+  DDR 压制、fail-closed 工程、NIST SP 800-81r3 威胁模型、RFC 族演进、
+  IPv6 RA/RDNSS 与前缀轮换、以及 Kubernetes 中的 DNS 选型。
+  全书以原创实战经验为主，所有配置均配验证命令与回滚点。
+rights: "© 2026 LeisureLinux. 正文以 CC BY-SA 4.0 发布；构建脚本为 MIT。"
+ibooks:
+  version: 0.1.0
+...
