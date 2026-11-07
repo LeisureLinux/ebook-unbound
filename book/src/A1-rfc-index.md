@@ -51,20 +51,27 @@
 | [RFC 5014](https://www.rfc-editor.org/rfc/rfc5014) | IPv6 Socket API for Source Address Selection | Sep 2007 | INFORMATIONAL | 有效 | IPv6 / 地址与 RA |
 | [RFC 5074](https://www.rfc-editor.org/rfc/rfc5074) | DNSSEC Lookaside Validation (DLV) | Nov 2007 | HISTORIC | 有效 | DNSSEC / 信任链 |
 | [RFC 5155](https://www.rfc-editor.org/rfc/rfc5155) | DNS Security (DNSSEC) Hashed Authenticated Denial of Existence | Mar 2008 | PROPOSED STANDARD（有修订） | 有效 | DNSSEC / 信任链 |
+| [RFC 5358](https://www.rfc-editor.org/rfc/rfc5358) | Preventing Use of Recursive Nameservers in Reflector Attacks | Oct 2008 | BEST CURRENT PRACTICE | 有效 | DNS 基础 / 术语 / 实现 |
+| [RFC 5452](https://www.rfc-editor.org/rfc/rfc5452) | Measures for Making DNS More Resilient against Forged Answers | Jan 2009 | PROPOSED STANDARD | 有效 | DNS 基础 / 术语 / 实现 |
 | [RFC 5737](https://www.rfc-editor.org/rfc/rfc5737) | IPv4 Address Blocks Reserved for Documentation | Jan 2010 | INFORMATIONAL | 有效 | 特殊用途域名 |
 | [RFC 5936](https://www.rfc-editor.org/rfc/rfc5936) | DNS Zone Transfer Protocol (AXFR) | Jun 2010 | PROPOSED STANDARD（有修订） | 有效 | DNS 基础 / 术语 / 实现 |
 | [RFC 6106](https://www.rfc-editor.org/rfc/rfc6106) | IPv6 Router Advertisement Options for DNS Configuration | Nov 2010 | PROPOSED STANDARD | 已被替代 | IPv6 / 地址与 RA |
+| [RFC 6186](https://www.rfc-editor.org/rfc/rfc6186) | Use of SRV Records for Locating Email Submission/Access Services | Mar 2011 | PROPOSED STANDARD（有修订） | 有效 | 邮件 / 证书 / 公钥发布 |
+| [RFC 6376](https://www.rfc-editor.org/rfc/rfc6376) | DomainKeys Identified Mail (DKIM) Signatures | Sep 2011 | INTERNET STANDARD（有修订） | 有效 | 邮件 / 证书 / 公钥发布 |
 | [RFC 6724](https://www.rfc-editor.org/rfc/rfc6724) | Default Address Selection for Internet Protocol Version 6 (IPv6) | Sep 2012 | PROPOSED STANDARD | 有效 | IPv6 / 地址与 RA |
 | [RFC 6761](https://www.rfc-editor.org/rfc/rfc6761) | Special-Use Domain Names | Feb 2013 | PROPOSED STANDARD | 有效 | 特殊用途域名 |
 | [RFC 6762](https://www.rfc-editor.org/rfc/rfc6762) | Multicast DNS | Feb 2013 | PROPOSED STANDARD | 有效 | 服务发现 / 多播 / DDR |
 | [RFC 6763](https://www.rfc-editor.org/rfc/rfc6763) | DNS-Based Service Discovery | Feb 2013 | PROPOSED STANDARD（有修订） | 有效 | 服务发现 / 多播 / DDR |
 | [RFC 6781](https://www.rfc-editor.org/rfc/rfc6781) | DNSSEC Operational Practices, Version 2 | Dec 2012 | INFORMATIONAL | 有效 | DNSSEC / 信任链 |
 | [RFC 6840](https://www.rfc-editor.org/rfc/rfc6840) | Clarifications and Implementation Notes for DNS Security (DNSSEC) | Feb 2013 | PROPOSED STANDARD（有修订） | 有效 | DNSSEC / 信任链 |
+| [RFC 6844](https://www.rfc-editor.org/rfc/rfc6844) | DNS Certification Authority Authorization (CAA) Resource Record | Jan 2013 | PROPOSED STANDARD | 已被替代 | 邮件 / 证书 / 公钥发布 |
 | [RFC 6891](https://www.rfc-editor.org/rfc/rfc6891) | Extension Mechanisms for DNS (EDNS(0)) | Apr 2013 | INTERNET STANDARD | 有效 | 缓存 / 应答语义 / EDNS |
 | [RFC 6944](https://www.rfc-editor.org/rfc/rfc6944) | Applicability Statement: DNS Security (DNSSEC) DNSKEY Algorithm Implementation Status | Apr 2013 | PROPOSED STANDARD | 已被替代 | DNSSEC / 信任链 |
 | [RFC 6975](https://www.rfc-editor.org/rfc/rfc6975) | Signaling Cryptographic Algorithm Understanding in DNS Security Extensions (DNSSEC) | Jul 2013 | PROPOSED STANDARD | 有效 | DNSSEC / 信任链 |
 | [RFC 7129](https://www.rfc-editor.org/rfc/rfc7129) | Authenticated Denial of Existence in the DNS | Feb 2014 | INFORMATIONAL | 有效 | DNS 基础 / 术语 / 实现 |
+| [RFC 7208](https://www.rfc-editor.org/rfc/rfc7208) | Sender Policy Framework (SPF) for Authorizing Use of Domains in Email, Version 1 | Apr 2014 | PROPOSED STANDARD（有修订） | 有效 | 邮件 / 证书 / 公钥发布 |
 | [RFC 7583](https://www.rfc-editor.org/rfc/rfc7583) | DNSSEC Key Rollover Timing Considerations | Oct 2015 | INFORMATIONAL | 有效 | DNSSEC / 信任链 |
+| [RFC 7672](https://www.rfc-editor.org/rfc/rfc7672) | SMTP Security via Opportunistic DNS-Based Authentication of Named Entities (DANE) Transport Layer Security (TLS) | Oct 2015 | PROPOSED STANDARD | 有效 | 邮件 / 证书 / 公钥发布 |
 | [RFC 7686](https://www.rfc-editor.org/rfc/rfc7686) | The ".onion" Special-Use Domain Name | Oct 2015 | PROPOSED STANDARD | 有效 | 特殊用途域名 |
 | [RFC 7719](https://www.rfc-editor.org/rfc/rfc7719) | DNS Terminology | Dec 2015 | INFORMATIONAL | 已被替代 | DNS 基础 / 术语 / 实现 |
 | [RFC 7766](https://www.rfc-editor.org/rfc/rfc7766) | DNS Transport over TCP - Implementation Requirements | Mar 2016 | PROPOSED STANDARD（有修订） | 有效 | DNS 基础 / 术语 / 实现 |
@@ -77,7 +84,9 @@
 | [RFC 8106](https://www.rfc-editor.org/rfc/rfc8106) | IPv6 Router Advertisement Options for DNS Configuration | Mar 2017 | PROPOSED STANDARD | 有效 | IPv6 / 地址与 RA |
 | [RFC 8200](https://www.rfc-editor.org/rfc/rfc8200) | Internet Protocol, Version 6 (IPv6) Specification | Jul 2017 | INTERNET STANDARD（有修订） | 有效 | IPv6 / 地址与 RA |
 | [RFC 8310](https://www.rfc-editor.org/rfc/rfc8310) | Usage Profiles for DNS over TLS and DNS over DTLS | Mar 2018 | PROPOSED STANDARD | 有效 | 查询隐私 / 加密传输 |
+| [RFC 8314](https://www.rfc-editor.org/rfc/rfc8314) | Cleartext Considered Obsolete: Use of Transport Layer Security (TLS) for Email Submission and Access | Jan 2018 | PROPOSED STANDARD（有修订） | 有效 | 邮件 / 证书 / 公钥发布 |
 | [RFC 8375](https://www.rfc-editor.org/rfc/rfc8375) | Special-Use Domain 'home.arpa.' | May 2018 | PROPOSED STANDARD | 有效 | 特殊用途域名 |
+| [RFC 8461](https://www.rfc-editor.org/rfc/rfc8461) | SMTP MTA Strict Transport Security (MTA-STS) | Sep 2018 | PROPOSED STANDARD | 有效 | 邮件 / 证书 / 公钥发布 |
 | [RFC 8484](https://www.rfc-editor.org/rfc/rfc8484) | DNS Queries over HTTPS (DoH) | Oct 2018 | PROPOSED STANDARD | 有效 | 查询隐私 / 加密传输 |
 | [RFC 8499](https://www.rfc-editor.org/rfc/rfc8499) | DNS Terminology | Jan 2019 | BEST CURRENT PRACTICE | 已被替代 | DNS 基础 / 术语 / 实现 |
 | [RFC 8624](https://www.rfc-editor.org/rfc/rfc8624) | Algorithm Implementation Requirements and Usage Guidance for DNSSEC | Jun 2019 | PROPOSED STANDARD（有修订） | 已被替代 | DNSSEC / 信任链 |
