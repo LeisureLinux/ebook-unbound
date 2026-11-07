@@ -56,7 +56,7 @@ jobs:
           rsvg-convert -w 1200 -h 1600 cover.svg -o cover.png
           ls -la cover.png
 
-      - name: Collect chapters (strict: all 22 required for release)
+      - name: Collect chapters (strict: all 24 chapters required for release)
         id: chapters
         run: |
           cd book
