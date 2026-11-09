@@ -87,52 +87,64 @@ def build_chapter_map(files: list[str]) -> dict[str, tuple[int, str] | None]:
 
 
 def fix_nav(nav: str) -> str:
-    """把 nav 顶层章标签改成「第X章」，附录/版本信息去掉章号，篇名加空格。"""
-    # 收集顶层 li（不带 ol 子列表的 li 就是顶层；用非贪婪匹配到 </li>）
-    # 更稳妥：逐个匹配 <li id="toc-li-N"><a href="text/chNNN.xhtml"...>...</a>，
-    # 其后紧跟 </li> 或 <ol 的都是顶层。
-    # 不依赖 <li id="toc-li-N">：不同 Pandoc 版本生成的 li 属性不同，
-    # 只按「指向 text/chNNN.xhtml 的 <a>」匹配更稳。
-    # 只匹配「不带 # 锚点」的 chNNN.xhtml 链接（顶层章）；小节链接都带 #。
-    pattern = re.compile(
-        r'(<a href="[^"#]*?ch\d+\.xhtml"[^>]*>)(.*?)(</a>)',
-        re.S,
-    )
-    # 先按出现顺序给章编号：从「第一个没有编号的普通章标题」开始
-    # 篇标题 / 前言 / 附录 / 版本信息 都不编号
-    items = list(pattern.finditer(nav))
+    """把 nav 顶层章标签改成「第X章」，附录/版本信息去掉章号，篇名加空格。
+
+    做法：用轻量状态机按 <ol>/</ol> 深度找出「深度 1」的 <li> 里的第一个
+    <a>，只改这些 <a> 的文本。与 Pandoc 版本无关（3.1 顶层 href 无 #，
+    3.7 顶层 href 带 #），也不会误伤嵌套 <ol> 里的小节。
+    """
+    # 把 nav 拆成 token（标签 / 文本），记录 ol 深度
+    tokens = re.split(r'(<[^>]+>)', nav)
+    depth = 0
+    # 记录每个顶层 <a>...</a> 的 (start_idx, end_idx, 原文本)
+    tops: list[tuple[int, int, str]] = []
+    i = 0
+    pending_li = False      # 刚遇到深度 1 的 <li>
+    a_open: int | None = None
+    while i < len(tokens):
+        tok = tokens[i]
+        if not tok.startswith("<"):
+            i += 1
+            continue
+        low = tok.lower()
+        if low.startswith("<ol"):
+            depth += 1
+        elif low.startswith("</ol"):
+            depth -= 1
+        elif low.startswith("<li") and depth == 1:
+            pending_li = True
+        elif low.startswith("</li"):
+            pending_li = False
+        elif pending_li and low.startswith("<a ") and a_open is None:
+            a_open = i
+            pending_li = False
+        elif a_open is not None and low.startswith("</a"):
+            raw = "".join(tokens[a_open + 1:i])
+            tops.append((a_open, i, raw))
+            a_open = None
+        i += 1
+
+    # 先正序算好每个顶层 <a> 的新文本，再倒序应用（避免索引位移）
     n = 0
-    replacements: list[tuple[int, int, str]] = []
-    for m in items:
-        head, label_html, tail = m.group(1), m.group(2), m.group(3)
-        plain = re.sub(r"<[^>]+>", "", label_html).strip()
-        # 先剥掉 Pandoc 的章级编号 span（第 1 章 / 裸数字 38），
-        # 再剥掉正文里残留的裸章号「1 」（Pandoc 给 unnumbered 章也留了数字）
-        body = re.sub(r'<span class="toc-section-number">[^<]*</span>\s*', "", label_html).strip()
-        body_plain = re.sub(r"<[^>]+>", "", body).strip()
-        body_plain = re.sub(r"^\d+\s+", "", body_plain).strip()
+    planned: list[tuple[int, int, str]] = []
+    for a_idx, close_idx, raw in tops:
+        label = re.sub(r"<[^>]+>", "", raw).strip()
+        body = re.sub(r"^\d+\s+", "", label).strip()
+        if re.match(r"^第[一二三四五]篇", body):
+            new = re.sub(r"^(第[一二三四五]篇)\s*", r"\1　", body)
+        elif body in ("前言", "版本信息") or re.match(r"^附录 [AB]", body) \
+             or body.startswith(("图书介绍", "版权信息", "作者简介")):
+            new = body
+        else:
+            n += 1
+            new = f"{chapter_label(n)} {body}"
+        planned.append((a_idx, close_idx, new))
 
-        if re.match(r"^第[一二三四五]篇", body_plain):
-            # 篇：确保「第N篇」后有全角空格
-            new_label = re.sub(r"^(第[一二三四五]篇)\s*", r"\1　", body_plain)
-            replacements.append((m.start(), m.end(), head + new_label + tail))
-            continue
-        if body_plain in ("前言", "版本信息") or re.match(r"^附录 [AB]", body_plain):
-            replacements.append((m.start(), m.end(), head + body_plain + tail))
-            continue
-        if body_plain.startswith("图书介绍") or body_plain.startswith("版权信息") or body_plain.startswith("作者简介"):
-            replacements.append((m.start(), m.end(), head + body_plain + tail))
-            continue
-        # 普通章
-        n += 1
-        new_label = f"{chapter_label(n)} {body_plain}"
-        replacements.append((m.start(), m.end(), head + new_label + tail))
+    for a_idx, close_idx, new in reversed(planned):
+        tokens[a_idx + 1:close_idx] = [new]
 
-    for s, e, rep in reversed(replacements):
-        nav = nav[:s] + rep + nav[e:]
-    if n != 37:
-        print(f"  ⚠️ fix_nav: 只识别到 {n} 个章（应为 37），nav 结构可能与预期不同", file=sys.stderr)
-    return nav
+    # 章号正确性由 scripts/verify-epub.py 统一校验，这里不重复报
+    return "".join(tokens)
 
 
 def fix_ncx(ncx: str) -> str:

@@ -148,18 +148,6 @@ jobs:
 
       - name: Fix front matter and TOC format
         run: |
-          # 调试：打印 Pandoc 生成的 nav 前 40 行（新版 3.7 结构可能不同）
-          python3 - <<'PYDEBUG'
-          import zipfile
-          z = zipfile.ZipFile("dist/unbound-dns-hardening.epub")
-          n = next(x for x in z.namelist() if x.endswith("nav.xhtml"))
-          txt = z.read(n).decode("utf-8", "replace")
-          lines = txt.splitlines()
-          print("=== nav.xhtml: line count", len(lines), "===")
-          for i, l in enumerate(lines):
-              if "ch001" in l or "ch002" in l or "ch003" in l or "epub:type=\"toc\"" in l:
-                  print(f"L{i}: {l[:300]}")
-          PYDEBUG
           VERSION=${GITHUB_REF_NAME}
           case "$VERSION" in v*) ;; *) VERSION=$(git tag --list 'v*' --sort=version:refname | tail -1);; esac
           python3 scripts/fix-front-matter.py \
