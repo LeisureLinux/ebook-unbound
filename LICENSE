@@ -1,7 +1,7 @@
-# 《Unbound DNS 服务加固指南》— 许可说明
+# 《DNS的加密和隐私防护——从如何加固 Unbound 说起》— 许可说明
 
-**Title:** Unbound DNS 服务加固指南
-**Author:** LeisureLinux
+**Title:** DNS的加密和隐私防护——从如何加固 Unbound 说起
+**Author:** @LeisureLinux
 **Year:** 2026
 
 本书的**正文**（`book/src/*.md` 及其构建出的 PDF / ePub / HTML）以
@@ -19,7 +19,7 @@
 
 ## 条件
 
-- **署名（BY）** —— 必须注明作者 LeisureLinux、给出本书链接、说明是否做过修改；
+- **署名（BY）** —— 必须注明作者 @LeisureLinux、给出本书链接、说明是否做过修改；
 - **相同方式共享（SA）** —— 若你改编了本书，衍生作品必须以相同许可（CC BY-SA 4.0 或兼容许可）发布；
 - **无需额外限制** —— 不得对他人行使上述自由施加法律或技术限制。
 
@@ -28,7 +28,7 @@
 | 路径 | 许可 | 说明 |
 |---|---|---|
 | `book/src/*.md`、构建出的 PDF/ePub/HTML | **CC BY-SA 4.0** | 本书正文 |
-| `scripts/`、`book/theme/`、`.github/workflows/` | **MIT** | 构建工具链，沿用 `ebook-ssh-hardening` 的模板（Copyright (c) 2026 LeisureLinux, MIT License） |
+| `scripts/`、`book/theme/`、`.github/workflows/` | **MIT** | 构建工具链，沿用 `ebook-ssh-hardening` 的模板（Copyright (c) 2026 @LeisureLinux, MIT License） |
 | `resources/` | **不发布** | 被 `.gitignore` 忽略，仅作本地写作参考，不进入公开仓库 |
 
 ## 第三方材料

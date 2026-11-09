@@ -1,28 +1,34 @@
-# 版本信息
+# 版本信息 {.unnumbered}
 
 > 本页为电子书的自动生成元数据（`scripts/render_colophon.py` 在构建时按 git tag 覆盖本文件），
 > 会出现在 PDF / ePub / HTML 三个格式的最后。
 
 | 字段 | 值 |
 |------|----|
-| 当前版本 | v0.1.0（初稿） |
+| 当前版本 | v0.7.0 |
 | 发布日期 | 2026 年 11 月 |
 | 仓库 | https://github.com/LeisureLinux/ebook-unbound |
 | 在线阅读 | https://leisurelinux.github.io/ebook-unbound/ |
-| 许可 | CC BY-SA 4.0（正文）— © 2026 LeisureLinux |
+| 许可 | CC BY-SA 4.0（正文）— © 2026 @LeisureLinux |
 
-## 本次版本修订记录 (v0.1.0)
+## 本次版本修订记录 (v0.7.0) {.unnumbered}
 
-- 初版：五篇二十二章，覆盖 Unbound 历史与横评、按角色配置、NIST 威胁模型下的加固、
-  RFC 族理论、IPv6 / Kubernetes / 故障案例工程实践。
-- 新增 `scripts/unbound-audit.sh` 静态基线检查。
-- 统一术语与脱敏：所有示例地址取自 RFC 5737 / RFC 3849 文档段。
+- 书名改为《DNS的加密和隐私防护——从如何加固 Unbound 说起》，图书介绍按五篇结构、
+  读者层次、安全加固必要性与 DNS 隐私防护动机重写。
+- 补齐完整前置页：封面（PDF / ePub）、图书介绍、版权信息、作者简介；推荐语留空。
+- ePub 封面后一页署名统一为「B站频道，微信公众号： @LeisureLinux」，日期后带版本号。
+- 目录格式统一为「第X章 标题」「第N篇　标题」「1.1 小节」；附录改名 A / B，
+  附录与版本信息不带章号。
+- 新增 `scripts/verify-epub.py` 纯命令行结构校验、`scripts/add-pdf-cover.py` PDF 封面拼接。
+- 修复 XeLaTeX 下圈码与数学符号的缺字警告；修复 ePub 前置页被重复注入正文的问题。
 
-## 历史版本
+## 历史版本 {.unnumbered}
 
 | 版本 | 日期 | 主要变更 |
 |------|------|----------|
-| v0.1.0 | 2026-11-07 | 初版 |
+| v0.7.0 | 2026-11-09 | 书名与图书介绍重写、前置页与目录格式、PDF 封面、附录改名 |
+| v0.6.0 | 2026-11-09 | 新增第 37 章 HTTPDNS；PDF 字体符号修复；章数同步到 37 |
+| v0.5.0 | 2026-11-07 | 36 章定稿：故障排查工具箱、BIND/Unbound 命名、RFC6724 与 SSH DNS 归属 |
 
 ---
 

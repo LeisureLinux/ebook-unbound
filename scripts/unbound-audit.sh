@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# unbound-audit.sh — 检查一份 unbound.conf 是否违反《Unbound DNS 服务加固指南》的基线
+# unbound-audit.sh — 检查一份 unbound.conf 是否违反《DNS的加密和隐私防护——从如何加固 Unbound 说起》的基线
 #
 # 用法:
 #   scripts/unbound-audit.sh /etc/unbound/unbound.conf

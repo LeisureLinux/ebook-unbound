@@ -1,10 +1,10 @@
-# Unbound DNS 服务加固指南
+# DNS的加密和隐私防护——从如何加固 Unbound 说起
 
-> **Unbound DNS Hardening** — 从递归解析器到加密、私有、IPv6-ready 的 DNS 基础设施。
+> **DNS Encryption and Privacy — Hardening Unbound from the Ground Up** —— DNS 的加密与隐私防护：从加固 Unbound 说起
 >
 > 中文原创开源电子书 · 对齐 **NIST SP 800-81r3** 威胁模型 · 覆盖 DNSSEC / DoT / DoH / QMIN / IPv6 / Kubernetes DNS 选型。
 
-by [LeisureLinux](https://github.com/LeisureLinux) · 正文 **CC BY-SA 4.0** · 构建脚本 MIT
+by [@LeisureLinux](https://github.com/LeisureLinux) · 正文 **CC BY-SA 4.0** · 构建脚本 MIT
 
 [![build](https://github.com/LeisureLinux/ebook-unbound/actions/workflows/build.yml/badge.svg)](https://github.com/LeisureLinux/ebook-unbound/actions/workflows/build.yml)
 [![license](https://img.shields.io/badge/license-CC%20BY--SA%204.0-blue.svg)](./LICENSE)
@@ -159,8 +159,8 @@ server:
 
 | 附录 | 内容 |
 |---|---|
-| [A1 RFC 清单](book/src/A1-rfc-index.md) | 全书引用的 89 份 RFC：名称、发布日期、状态、是否有效、描述对象（数据来自 RFC Editor 官方索引） |
-| [A2 缩略语](book/src/A2-glossary.md) | 按字母顺序，含 AD/DDNS 等同缩写在不同语境下的区分 |
+| [附录 A　RFC 清单](book/src/A-rfc-index.md) | 全书引用的 89 份 RFC：名称、发布日期、状态、是否有效、描述对象（数据来自 RFC Editor 官方索引） |
+| [附录 B　缩略语](book/src/B-glossary.md) | 按字母顺序，含 AD/DDNS 等同缩写在不同语境下的区分 |
 
 ## 合规框架映射
 

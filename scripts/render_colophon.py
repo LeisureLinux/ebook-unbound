@@ -19,7 +19,7 @@ COLOPHON = REPO / "book" / "src" / "99-colophon.md"
 
 # Canonical template. Single source of truth; do NOT edit on disk
 # outside of this script (any local edit will be overwritten on next run).
-TEMPLATE = """# 版本信息
+TEMPLATE = """# 版本信息 {.unnumbered}
 
 > 本页为电子书的自动生成元数据，会出现在 PDF / ePub / HTML 三个格式的最后一页。
 
@@ -30,13 +30,13 @@ TEMPLATE = """# 版本信息
 | 发布日期 | {{RELEASE_DATE}} |
 | 仓库 | https://github.com/LeisureLinux/ebook-unbound |
 | 在线阅读 | https://leisurelinux.github.io/ebook-unbound/ |
-| 许可 | CC BY-SA 4.0（正文）— © 2026 LeisureLinux |
+| 许可 | CC BY-SA 4.0（正文）— © 2026 @LeisureLinux |
 
-## 本次版本修订记录 ({{CURRENT_VERSION}})
+## 本次版本修订记录 ({{CURRENT_VERSION}}) {.unnumbered}
 
 {{CURRENT_CHANGELOG}}
 
-## 历史版本
+## 历史版本 {.unnumbered}
 
 | 版本 | 日期 | 主要变更 |
 |------|------|----------|

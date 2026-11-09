@@ -1,8 +1,8 @@
-# Unbound DNS 服务加固指南
+# DNS的加密和隐私防护——从如何加固 Unbound 说起
 
 > 中文原创开源电子书：以 Unbound 为主线，讲透递归解析器的角色划分、配置方法、安全加固与协议理论。
-> 覆盖 DNSSEC、DoT/DoH、QNAME minimisation、NIST SP 800-81r3 威胁模型、IPv6 RA/RDNSS、Kubernetes DNS 选型。
-> 作者 LeisureLinux · 正文 CC BY-SA 4.0 · 构建脚本 MIT · 2026 年 11 月。
+> 覆盖 DNSSEC、DoT/DoH/DoQ、QNAME minimisation、DNS 隐私防护、NIST SP 800-81r3 威胁模型、IPv6 RA/RDNSS、Kubernetes DNS 选型。
+> 作者 @LeisureLinux · 正文 CC BY-SA 4.0 · 构建脚本 MIT · 2026 年 11 月。
 
 ## 项目
 

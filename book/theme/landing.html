@@ -3,25 +3,25 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Unbound DNS 服务加固指南 | 开源电子书</title>
+<title>DNS的加密和隐私防护——从如何加固 Unbound 说起 | 开源电子书</title>
 <meta name="description" content="中文原创开源电子书：以 Unbound 为主线，讲透递归解析器配置、DNSSEC、DoT/DoH、QNAME minimisation、NIST SP 800-81r3、IPv6 RA/RDNSS 与 Kubernetes DNS 选型。">
 <meta name="keywords" content="Unbound, DNS, DNSSEC, DoT, DoH, QNAME minimisation, NIST SP 800-81, IPv6, RDNSS, nftables, CoreDNS, Kubernetes, DNS privacy, 递归解析器">
-<meta name="author" content="LeisureLinux">
+<meta name="author" content="@LeisureLinux">
 <meta name="robots" content="index, follow">
 <link rel="canonical" href="https://leisurelinux.github.io/ebook-unbound/">
 <meta property="og:type" content="website">
-<meta property="og:title" content="Unbound DNS 服务加固指南">
-<meta property="og:description" content="从递归解析器到加密、私有、IPv6-ready 的 DNS 基础设施。五篇三十七章，原创实战经验。">
+<meta property="og:title" content="DNS的加密和隐私防护——从如何加固 Unbound 说起">
+<meta property="og:description" content="DNS 的加密与隐私防护：从加固 Unbound 说起。五篇三十七章，原创实战经验。">
 <meta property="og:url" content="https://leisurelinux.github.io/ebook-unbound/">
 <meta property="og:locale" content="zh_CN">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Unbound DNS 服务加固指南">
+<meta name="twitter:title" content="DNS的加密和隐私防护——从如何加固 Unbound 说起">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@type": "Book",
-  "name": "Unbound DNS 服务加固指南",
-  "alternateName": "Unbound DNS Hardening",
+  "name": "DNS的加密和隐私防护——从如何加固 Unbound 说起",
+  "alternateName": "DNS Encryption and Privacy — Hardening Unbound from the Ground Up",
   "author": {"@type": "Organization", "name": "LeisureLinux", "url": "https://github.com/LeisureLinux"},
   "datePublished": "2026-11",
   "description": "覆盖 Unbound 历史与横评、按角色配置、DNSSEC / DoT / DoH 加固、RFC 族理论、IPv6 与 Kubernetes DNS 的中文原创开源电子书。",
@@ -29,7 +29,7 @@
   "license": "https://creativecommons.org/licenses/by-sa/4.0/",
   "url": "https://leisurelinux.github.io/ebook-unbound/",
   "isAccessibleForFree": true,
-  "publisher": {"@type": "Organization", "name": "LeisureLinux"},
+  "publisher": {"@type": "Organization", "name": "@LeisureLinux"},
   "about": [
     {"@type": "Thing", "name": "DNS"},
     {"@type": "Thing", "name": "Unbound"},
@@ -63,8 +63,8 @@ a.inline{color:var(--accent)}
 </head>
 <body>
 <div class="wrap">
-  <h1>Unbound DNS 服务加固指南</h1>
-  <p class="sub">Unbound DNS Hardening — 从递归解析器到加密、私有、IPv6-ready 的 DNS 基础设施</p>
+  <h1>DNS的加密和隐私防护——从如何加固 Unbound 说起</h1>
+  <p class="sub">DNS Encryption and Privacy — Hardening Unbound from the Ground Up　——　DNS 的加密与隐私防护：从加固 Unbound 说起</p>
   <div class="badges">
     <span>CC BY-SA 4.0</span><span>中文原创</span><span>五篇三十七章</span>
     <span>NIST SP 800-81r3</span><span>IPv6 / Kubernetes</span>
@@ -121,7 +121,7 @@ local-zone: "_dns.resolver.arpa." always_nodata</code></pre>
     <li>第 28 章 DNS 故障域隔离 —— 一次全球性中断的复盘，把「官方确认 / 外部观测 / 公开报道 / 本书推论」分列，给出六层隔离。</li>
   </ul>
 
-  <h2>v0.6.0 新增</h2>
+  <h2>v0.7.0 新增</h2>
   <ul>
     <li>第 37 章 <strong>HTTPDNS</strong>：为什么引入（LocalDNS 五个痛点）、如何用 Unbound 自建（递归实例 + HTTP(S) 前端 + 客户端改造三层）、大厂后端架构（管控层 / 解析层 / Anycast 边缘入口）。</li>
     <li>PDF 构建修复：把圈码、箭头、数学符号划入 xeCJK 的 CJK 类，消除全书 400+ 处「Missing character」。</li>
@@ -131,7 +131,7 @@ local-zone: "_dns.resolver.arpa." always_nodata</code></pre>
   <p>正文以 <a class="inline" href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a> 发布，
   构建脚本为 MIT。所有示例地址取自 RFC 5737 / RFC 3849 文档段，不指向任何真实服务。</p>
 
-  <footer>LeisureLinux · 2026 · <a class="inline" href="llms.txt">llms.txt</a></footer>
+  <footer>@LeisureLinux · 2026 · <a class="inline" href="llms.txt">llms.txt</a></footer>
 </div>
 </body>
 </html>

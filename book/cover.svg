@@ -1,54 +1,105 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1600" viewBox="0 0 1200 1600">
+  <!--
+    封面图形：取 Unbound / NLnet Labs 官方标识的配色与「折面」几何语汇，
+    重新演绎成 DNS 解析链路，不复制官方 logo 本身。
+    官方色：深靛蓝 #2d2e83（主）、青色 #1fc2d7（侧翼）、橙 #f26521（点缀）。
+  -->
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#0d2137"/>
-      <stop offset="100%" stop-color="#123b52"/>
+    <linearGradient id="bg" x1="0" y1="0" x2="0.7" y2="1">
+      <stop offset="0%" stop-color="#0d0d27"/>
+      <stop offset="55%" stop-color="#16173f"/>
+      <stop offset="100%" stop-color="#0b0b22"/>
     </linearGradient>
-    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0%" stop-color="#38bdf8"/>
-      <stop offset="100%" stop-color="#a7f3d0"/>
+    <linearGradient id="facet" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#0d0d27"/>
+      <stop offset="18%" stop-color="#23246b"/>
+      <stop offset="50%" stop-color="#2d2e83"/>
+      <stop offset="82%" stop-color="#23246b"/>
+      <stop offset="100%" stop-color="#0d0d27"/>
     </linearGradient>
+    <linearGradient id="cyan" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1fc2d7"/>
+      <stop offset="100%" stop-color="#1289a8"/>
+    </linearGradient>
+    <linearGradient id="rule" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#1fc2d7"/>
+      <stop offset="70%" stop-color="#2d2e83"/>
+      <stop offset="100%" stop-color="#f26521"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#1fc2d7" stop-opacity="0.22"/>
+      <stop offset="100%" stop-color="#1fc2d7" stop-opacity="0"/>
+    </radialGradient>
   </defs>
-  <rect width="1200" height="1600" fill="url(#bg)"/>
 
-  <!-- DNS 层级示意：根 -> TLD -> 权威 -> 验证器 -->
-  <g fill="none" stroke="url(#accent)" stroke-width="3" opacity="0.85">
-    <circle cx="600" cy="360" r="34"/>
-    <circle cx="600" cy="500" r="26"/>
-    <circle cx="600" cy="620" r="20"/>
-    <path d="M600 394 L600 474 M600 526 L600 600"/>
-    <path d="M600 640 C600 720 400 720 400 800 M600 640 C600 720 800 720 800 800"/>
-  </g>
-  <g fill="#a7f3d0" opacity="0.9">
-    <circle cx="400" cy="810" r="12"/>
-    <circle cx="800" cy="810" r="12"/>
-  </g>
-  <g fill="#e2e8f0" font-family="DejaVu Sans, Noto Sans CJK SC, sans-serif" font-size="22" opacity="0.72">
-    <text x="660" y="372">root</text>
-    <text x="642" y="508">TLD</text>
-    <text x="636" y="628">auth</text>
-    <text x="300" y="850">stub</text>
-    <text x="826" y="850">validator</text>
+  <rect width="1200" height="1600" fill="url(#bg)"/>
+  <circle cx="600" cy="540" r="420" fill="url(#glow)"/>
+
+  <!-- 折面徽记：外层 U / 盾形，中间深靛蓝折面，两侧青色侧翼 -->
+  <g>
+    <!-- 左青色侧翼 -->
+    <path d="M262 250 L402 330 L402 690 L336 728 L336 366 Z" fill="url(#cyan)" opacity="0.92"/>
+    <!-- 右青色侧翼 -->
+    <path d="M938 250 L798 330 L798 690 L864 728 L864 366 Z" fill="url(#cyan)" opacity="0.92"/>
+    <!-- 中央折面主体（菱形收束，呼应官方 U 形） -->
+    <path d="M402 330 L600 218 L798 330 L798 690 L600 802 L402 690 Z" fill="url(#facet)"/>
+    <path d="M402 330 L600 442 L798 330" fill="none" stroke="#1fc2d7" stroke-width="3" opacity="0.55"/>
+    <path d="M600 442 L600 802" fill="none" stroke="#1fc2d7" stroke-width="2" opacity="0.28"/>
+    <!-- 侧翼内缘高光 -->
+    <path d="M402 330 L402 690 L336 728 L336 366 Z" fill="#ffffff" opacity="0.06"/>
+    <path d="M798 330 L798 690 L864 728 L864 366 Z" fill="#ffffff" opacity="0.06"/>
+
+    <!-- 三层嵌套菱形：root -> TLD -> 权威 -->
+    <g fill="none" stroke="#1fc2d7">
+      <path d="M600 286 L742 372 L600 458 L458 372 Z" stroke-width="3" opacity="0.9"/>
+      <path d="M600 362 L686 414 L600 466 L514 414 Z" stroke-width="2.5" opacity="0.72"/>
+      <path d="M600 430 L638 454 L600 478 L562 454 Z" stroke-width="2" opacity="0.55"/>
+    </g>
+    <g fill="#a7f3d0">
+      <circle cx="600" cy="286" r="8"/>
+      <circle cx="600" cy="362" r="6"/>
+      <circle cx="600" cy="430" r="5"/>
+    </g>
+    <!-- 验证锚：品牌橙点缀 -->
+    <circle cx="600" cy="478" r="11" fill="#f26521"/>
+    <circle cx="600" cy="478" r="20" fill="none" stroke="#f26521" stroke-width="2" opacity="0.45"/>
+
+    <!-- 向下分叉到 stub / validator -->
+    <g fill="none" stroke="#1fc2d7" stroke-width="3" opacity="0.7">
+      <path d="M600 802 C600 884 420 884 420 968"/>
+      <path d="M600 802 C600 884 780 884 780 968"/>
+    </g>
+    <g fill="#1fc2d7">
+      <circle cx="420" cy="980" r="14"/>
+      <circle cx="780" cy="980" r="14"/>
+    </g>
+    <g fill="#cbd5e1" font-family="DejaVu Sans, Noto Sans CJK SC, sans-serif" font-size="24" opacity="0.8" text-anchor="middle">
+      <text x="420" y="1032">stub</text>
+      <text x="780" y="1032">validator</text>
+    </g>
+    <g fill="#e2e8f0" font-family="DejaVu Sans, Noto Sans CJK SC, sans-serif" font-size="22" opacity="0.66">
+      <text x="756" y="290">root</text>
+      <text x="700" y="366">TLD</text>
+      <text x="652" y="434">auth</text>
+    </g>
   </g>
 
   <!-- 加密链路 -->
-  <g stroke="#38bdf8" stroke-width="5" opacity="0.55">
-    <line x1="150" y1="1010" x2="1050" y2="1010" stroke-dasharray="18 14"/>
-  </g>
+  <line x1="150" y1="1092" x2="1050" y2="1092" stroke="url(#rule)" stroke-width="3" stroke-dasharray="16 12" opacity="0.75"/>
   <g fill="#7dd3fc" font-family="DejaVu Sans Mono, monospace" font-size="26" opacity="0.85">
-    <text x="150" y="1080">DNSSEC · DoT · DoH · QMIN</text>
+    <text x="150" y="1152">DNSSEC · DoT · DoH · DoQ · QMIN</text>
   </g>
 
   <!-- 标题 -->
   <g font-family="Noto Serif CJK SC, Noto Sans CJK SC, sans-serif">
-    <text x="110" y="1240" fill="#f8fafc" font-size="86" font-weight="bold">Unbound DNS</text>
-    <text x="110" y="1350" fill="#f8fafc" font-size="86" font-weight="bold">服务加固指南</text>
-    <text x="112" y="1424" fill="#a7f3d0" font-size="30">从递归解析器到加密、私有、IPv6-ready 的 DNS</text>
+    <text x="110" y="1260" fill="#f8fafc" font-size="76" font-weight="bold">DNS的加密和隐私防护</text>
+    <text x="110" y="1368" fill="#f8fafc" font-size="58" font-weight="bold">从如何加固 Unbound 说起</text>
+    <text x="112" y="1468" fill="#5eead4" font-size="28">DNS Encryption and Privacy · 从加固 Unbound 说起</text>
   </g>
 
-  <line x1="110" y1="1468" x2="1090" y2="1468" stroke="url(#accent)" stroke-width="4"/>
-  <g fill="#94a3b8" font-family="DejaVu Sans, Noto Sans CJK SC, sans-serif" font-size="26">
-    <text x="110" y="1524">LeisureLinux</text>
-    <text x="880" y="1524">CC BY-SA 4.0</text>
+  <line x1="110" y1="1502" x2="1090" y2="1502" stroke="url(#rule)" stroke-width="4"/>
+  <g fill="#94a3b8" font-family="DejaVu Sans, Noto Sans CJK SC, sans-serif" font-size="27">
+    <text x="110" y="1558">@LeisureLinux</text>
+    <text x="862" y="1558">CC BY-SA 4.0</text>
   </g>
 </svg>

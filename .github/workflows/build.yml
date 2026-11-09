@@ -85,6 +85,15 @@ jobs:
         run: |
           mkdir -p dist
           cd book
+          mkdir -p build/front
+          for i in 01 02 03; do
+            pandoc --to=latex --from=markdown+smart+footnotes+raw_attribute \
+              -V documentclass=book "src/front/${i}-"*.md -o "build/front/${i}.tex"
+            printf '\n\\cleardoublepage\n' >> "build/front/${i}.tex"
+          done
+          BEFORE=(--include-before-body=build/front/01.tex \
+                  --include-before-body=build/front/02.tex \
+                  --include-before-body=build/front/03.tex)
           pandoc \
             --pdf-engine=xelatex \
             --metadata-file=metadata.yml \
@@ -95,8 +104,12 @@ jobs:
             --resource-path=src \
             -V documentclass=book \
             -V papersize=a4 \
+            "${BEFORE[@]}" \
             ${{ steps.chapters.outputs.files }} \
             -o ../dist/unbound-dns-hardening.pdf
+          cd ..
+          python3 -m pip install --quiet pypdf pillow
+          python3 scripts/add-pdf-cover.py book/cover.png dist/unbound-dns-hardening.pdf
 
       - name: Build ePub
         run: |
@@ -133,8 +146,13 @@ jobs:
             ${{ steps.chapters.outputs.files }} \
             -o ../dist/unbound-dns-hardening.html
 
-      - name: Fix TOC format (parts / chapters / sections)
-        run: python3 scripts/fix-toc.py dist/unbound-dns-hardening.epub dist/unbound-dns-hardening.html
+      - name: Fix front matter and TOC format
+        run: |
+          VERSION=${GITHUB_REF_NAME}
+          case "$VERSION" in v*) ;; *) VERSION=$(git tag --list 'v*' --sort=version:refname | tail -1);; esac
+          python3 scripts/fix-front-matter.py \
+            dist/unbound-dns-hardening.epub dist/unbound-dns-hardening.html "$VERSION"
+          python3 scripts/verify-epub.py dist/unbound-dns-hardening.epub "$VERSION"
 
       - name: Prepare GitHub Pages site
         run: |

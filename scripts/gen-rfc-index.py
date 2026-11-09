@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""gen-rfc-index.py — 从全书正文抽取 RFC 编号，生成附录 A1 的表格。
+"""gen-rfc-index.py — 从全书正文抽取 RFC 编号，生成附录 A 的表格。
 
 数据源：RFC Editor 官方 rfc-index.txt（构建时下载，失败时退回本地缓存
 /var/tmp/rfc-index.txt 或 resources/rfc-index.txt）。
 每章只引用编号与结论；名称/日期/状态/替代关系一律取自官方索引，不编造。
 
 用法:
-    python3 scripts/gen-rfc-index.py            # 生成 book/src/A1-rfc-index.md
+    python3 scripts/gen-rfc-index.py            # 生成 book/src/A-rfc-index.md
     python3 scripts/gen-rfc-index.py --check    # 只报告与磁盘版本的差异
 """
 from __future__ import annotations
@@ -19,7 +19,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / "book" / "src"
-OUT = SRC / "A1-rfc-index.md"
+OUT = SRC / "A-rfc-index.md"
 INDEX_URL = "https://www.rfc-editor.org/rfc-index.txt"
 CACHES = [ROOT / "resources" / "rfc-index.txt", Path("/tmp/rfc-index.txt")]
 
@@ -83,7 +83,7 @@ def describe(title: str) -> str:
 
 def render(meta: dict[str, dict], wanted: set[str]) -> str:
     lines = [
-        "# 附录 A1 RFC 清单", "",
+        "# 附录 A　RFC 清单 {.unnumbered}", "",
         "> 数据来源：RFC Editor 官方 `rfc-index.txt`。状态取自索引的 `Status:` 字段；",
         "> 「有效」按是否被 `Obsoleted by` 替代判定，`Updated by` 表示有后续修订但仍有效。", "",
         "| RFC | 名称 | 发布日期 | 状态 | 有效 | 描述对象 |",
@@ -109,12 +109,12 @@ def render(meta: dict[str, dict], wanted: set[str]) -> str:
 def main() -> int:
     wanted: set[str] = set()
     for p in SRC.glob("*.md"):
-        if p.name.startswith("A1-"):
+        if p.name.startswith("A-"):
             continue
         wanted |= set(re.findall(r"RFC\s+(\d+)", p.read_text(encoding="utf-8")))
     txt = load_index()
     if not txt:
-        print("  ❌ 无索引，无法生成 A1", file=sys.stderr)
+        print("  ❌ 无索引，无法生成附录 A", file=sys.stderr)
         return 1
     meta = parse(txt, wanted)
     content = render(meta, wanted)

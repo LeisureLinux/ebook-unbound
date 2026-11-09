@@ -1,4 +1,4 @@
-# 附录 A1 RFC 清单
+# 附录 A　RFC 清单 {.unnumbered}
 
 > 数据来源：RFC Editor 官方 `rfc-index.txt`。状态取自索引的 `Status:` 字段；
 > 「有效」按是否被 `Obsoleted by` 替代判定，`Updated by` 表示有后续修订但仍有效。

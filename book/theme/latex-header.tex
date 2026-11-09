@@ -44,7 +44,7 @@
   {\parindent \z@ \raggedright \normalfont
     \ifnum \c@secnumdepth >\m@ne
       \if@mainmatter
-        \huge\bfseries 第 \thechapter 章 \par\nobreak
+        \huge\bfseries 第\chapzh{\arabic{chapter}}章 \par\nobreak
         \vskip 20\p@
       \fi
     \fi
@@ -106,7 +106,7 @@
 \fancyhf{}
 \fancyhead[LE]{\thepage\quad\textit{\leftmark}}
 \fancyhead[RO]{\textit{\rightmark}\quad\thepage}
-\renewcommand{\chaptermark}[1]{\markboth{第 \thechapter 章\quad #1}{}}
+\renewcommand{\chaptermark}[1]{\markboth{第\chapzh{\arabic{chapter}}章\quad #1}{}}
 \renewcommand{\sectionmark}[1]{\markright{\thesection\quad #1}}
 
 % ---- 6. Listings / code block style ----
@@ -127,3 +127,52 @@
   breaklines=true,
   showstringspaces=false
 }
+
+% ---- 7. Chapter numbering / TOC format ----
+% 目录要求：「第X章 标题」（中文数字，章号与标题之间不加空格）、
+% 小节保持 1.1 / 1.1.1、篇名「第N篇　XXX」、附录与版本信息不带章号。
+% 小节编号仍用 \arabic{chapter}，所以正文里显示 1.1 而不是「第一章.1」。
+\usepackage{tocloft}
+\makeatletter
+\newcommand*\chapzh[1]{%
+  \ifcase\numexpr#1\relax\or 一\or 二\or 三\or 四\or 五\or 六\or 七\or 八\or 九\or 十%
+  \or 十一\or 十二\or 十三\or 十四\or 十五\or 十六\or 十七\or 十八\or 十九\or 二十%
+  \or 二十一\or 二十二\or 二十三\or 二十四\or 二十五\or 二十六\or 二十七\or 二十八\or 二十九\or 三十%
+  \or 三十一\or 三十二\or 三十三\or 三十四\or 三十五\or 三十六\or 三十七\or 三十八\or 三十九\or 四十%
+  \else \arabic{#1}\fi}
+\makeatother
+\renewcommand{\thechapter}{第\chapzh{\arabic{chapter}}章}
+\renewcommand{\thesection}{\arabic{chapter}.\arabic{section}}
+\renewcommand{\thesubsection}{\arabic{chapter}.\arabic{section}.\arabic{subsection}}
+\renewcommand{\contentsname}{目录}
+\setlength{\cftchapnumwidth}{6.5em}
+\setlength{\cftsecnumwidth}{3.2em}
+\setlength{\cftsubsecnumwidth}{4.2em}
+% 正文里的章头也用中文数字（原来的 \thechapter 此时已是「第X章」）
+\makeatletter
+\def\@makechapterhead#1{%
+  \vspace*{50\p@}%
+  {\parindent \z@ \raggedright \normalfont
+    \ifnum \c@secnumdepth >\m@ne
+      \if@mainmatter
+        \huge\bfseries 第\chapzh{\arabic{chapter}}章 \par\nobreak
+        \vskip 20\p@
+      \fi
+    \fi
+    \interlinepenalty\@M
+    \Huge \bfseries #1\par\nobreak
+    \vskip 40\p@
+  }}
+\makeatother
+% 附录 / 版本信息在正文里用 \chapter*（见各章 H1 的 .unnumbered），
+% 其下的小节也标 .unnumbered，因此目录里不会出现 38.1 / 40.1 一类编号。
+
+% ---- 8. 封面后一页（\maketitle）作者行 ----
+% metadata.yml 的 author 已是 @LeisureLinux（供 ePub dc:creator 等元数据使用），
+% 这里只改 PDF/展示页里的作者行，与 ePub title_page / HTML header 保持一致。
+\makeatletter
+\AtBeginDocument{%
+  \g@addto@macro\@author{\relax}%  占位，避免空作者出错
+  \def\@author{B站频道，微信公众号： @LeisureLinux}%
+}
+\makeatother

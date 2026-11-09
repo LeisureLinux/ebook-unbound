@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""verify-book.py — 《Unbound DNS 服务加固指南》全书验收。
+"""verify-book.py — 《DNS的加密和隐私防护——从如何加固 Unbound 说起》全书验收。
 
 检查：
   1. 37 章 + 前言 + 版本信息齐全，文件名与 OUTLINE 一致；
@@ -54,7 +54,7 @@ def main() -> int:
         missing.append("00-preface.md")
     if not (SRC / "99-colophon.md").exists():
         missing.append("99-colophon.md")
-    for a in ("A1-rfc-index.md", "A2-glossary.md"):
+    for a in ("A-rfc-index.md", "B-glossary.md"):
         if not (SRC / a).exists():
             missing.append(a)
     if missing:
@@ -62,7 +62,7 @@ def main() -> int:
 
     chapters = [f for f in sorted(SRC.glob("*.md"))
                if re.match(r"^(?:0[1-9]|1\d|2[0-9]|3[0-7])-", f.name)]
-    info.append(f"章节文件 {len(chapters)}/37，加前言 / 附录 A1 A2 / 版本信息共 {len(list(SRC.glob('*.md')))} 个 md")
+    info.append(f"章节文件 {len(chapters)}/37，加前言 / 附录 A/B / 版本信息共 {len(list(SRC.glob('*.md')))} 个 md")
 
     total_lines = 0
     for f in chapters:
