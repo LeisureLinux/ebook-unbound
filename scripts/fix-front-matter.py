@@ -91,8 +91,11 @@ def fix_nav(nav: str) -> str:
     # 收集顶层 li（不带 ol 子列表的 li 就是顶层；用非贪婪匹配到 </li>）
     # 更稳妥：逐个匹配 <li id="toc-li-N"><a href="text/chNNN.xhtml"...>...</a>，
     # 其后紧跟 </li> 或 <ol 的都是顶层。
+    # 不依赖 <li id="toc-li-N">：不同 Pandoc 版本生成的 li 属性不同，
+    # 只按「指向 text/chNNN.xhtml 的 <a>」匹配更稳。
+    # 只匹配「不带 # 锚点」的 chNNN.xhtml 链接（顶层章）；小节链接都带 #。
     pattern = re.compile(
-        r'(<li id="toc-li-\d+"><a href="(text/ch\d+\.xhtml)"[^>]*>)(.*?)(</a>)',
+        r'(<a href="[^"#]*?ch\d+\.xhtml"[^>]*>)(.*?)(</a>)',
         re.S,
     )
     # 先按出现顺序给章编号：从「第一个没有编号的普通章标题」开始
@@ -101,7 +104,7 @@ def fix_nav(nav: str) -> str:
     n = 0
     replacements: list[tuple[int, int, str]] = []
     for m in items:
-        head, href, label_html, tail = m.group(1), m.group(2), m.group(3), m.group(4)
+        head, label_html, tail = m.group(1), m.group(2), m.group(3)
         plain = re.sub(r"<[^>]+>", "", label_html).strip()
         # 先剥掉 Pandoc 的章级编号 span（第 1 章 / 裸数字 38），
         # 再剥掉正文里残留的裸章号「1 」（Pandoc 给 unnumbered 章也留了数字）
@@ -127,6 +130,8 @@ def fix_nav(nav: str) -> str:
 
     for s, e, rep in reversed(replacements):
         nav = nav[:s] + rep + nav[e:]
+    if n != 37:
+        print(f"  ⚠️ fix_nav: 只识别到 {n} 个章（应为 37），nav 结构可能与预期不同", file=sys.stderr)
     return nav
 
 
@@ -277,10 +282,15 @@ def insert_front_epub(epub: Path, front_md: list[tuple[str, Path]]) -> None:
         f'<li><a href="{fname}">{html_mod.escape(title)}</a></li>'
         for fname, title, _ in new_items
     )
-    nav = re.sub(
-        r'(<li id="toc-li-1">)',
-        front_lis + r"\1", nav, count=1,
-    )
+    # 在第一个「前言」顶层 li 之前插入；不依赖 li id
+    m = re.search(r'(<li[^>]*>\s*<a href="[^"]*ch001\.xhtml)', nav)
+    if m:
+        nav = nav[:m.start()] + front_lis + nav[m.start():]
+    else:
+        # 兜底：插到第一个顶层 <li> 之前
+        m2 = re.search(r'<li[^>]*>', nav)
+        if m2:
+            nav = nav[:m2.start()] + front_lis + nav[m2.start():]
     data["EPUB/nav.xhtml"] = nav.encode("utf-8")
 
     # toc.ncx：在第一个「前言」navPoint 之前插入

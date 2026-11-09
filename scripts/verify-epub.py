@@ -103,7 +103,7 @@ def main() -> int:
             problems.append("缺 nav.xhtml 或 toc.ncx")
 
         epub_dir = prefix  # e.g. EPUB
-        nav_links = re.findall(r'href="([^"#]+)', nav)
+        nav_links = [h for h in re.findall(r'href="([^"#]+)', nav) if h]
         missing_nav = []
         for h in nav_links:
             target = f"{epub_dir}/{h}" if not h.startswith("EPUB/") else h
@@ -120,8 +120,9 @@ def main() -> int:
                     if not missing_nav and not missing_ncx else "nav/ncx 目标缺失")
 
         # 4. 目录格式
+        # 只取不带 # 锚点的顶层章链接
         labels = [re.sub(r"<[^>]+>", "", m.group(1)).strip()
-                  for m in re.finditer(r'<a href="text/ch\d+\.xhtml"[^>]*>(.*?)</a>', nav)]
+                  for m in re.finditer(r'<a href="[^"#]*?ch\d+\.xhtml"[^>]*>(.*?)</a>', nav)]
         ch_labels = [x for x in labels if re.match(r"^第[一二三四五六七八九十]+章", x)]
         if len(ch_labels) != 37:
             problems.append(f"章级「第X章」条目 {len(ch_labels)} 个，应为 37")
