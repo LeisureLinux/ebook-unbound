@@ -51,7 +51,6 @@
 | getaddrinfo | — | libc 名字解析接口；返回列表是**策略排序**，不是可用性排序 |
 | GSS-TSIG | Generic Security Service TSIG | [RFC 3645]，微软安全动态更新用 Kerberos 协商 |
 | HINFO | Host Information | 主机信息记录，现代基本弃用 |
-| HTTPDNS | — | 厂商私有 HTTP/JSON 查询接口，**不等于** [RFC 8484] DoH |
 | HTTPS RR | HTTPS Service Binding | [RFC 9460] 的 HTTPS 专用 SVCB 形式 |
 | IANA | Internet Assigned Numbers Authority | 号码与协议参数分配机构 |
 | IETF | Internet Engineering Task Force | RFC 与 Internet-Draft 的标准化组织 |

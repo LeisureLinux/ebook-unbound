@@ -2,7 +2,7 @@
 """verify-book.py — 《Unbound DNS 服务加固指南》全书验收。
 
 检查：
-  1. 36 章 + 前言 + 版本信息齐全，文件名与 OUTLINE 一致；
+  1. 37 章 + 前言 + 版本信息齐全，文件名与 OUTLINE 一致；
   2. 每章纯标题（无「第 N 章」前缀）、有「本章要点」与「参考资料」；
   3. 无 ####、代码围栏成对、无禁用术语；
   4. 脱敏红线（调用 check-redaction.py）；
@@ -32,7 +32,7 @@ EXPECT = {
     "20": "kubernetes-dns", "21": "lab-topology", "22": "failure-cases", "23": "wpad", "24": "adhole", "25": "ddns-msdns", "26": "anycast-cluster",
               "27": "mdns-dnssd", "28": "fault-domain-isolation", "29": "dns-attack-surface",
               "30": "dns-trust-records", "31": "observability-stack", "32": "proxy-transition-dns",
-              "33": "dhcp-dns", "34": "redteam-recon", "35": "dns-honeypot", "36": "troubleshooting",
+              "33": "dhcp-dns", "34": "redteam-recon", "35": "dns-honeypot", "36": "troubleshooting", "37": "httpdns",
 }
 BAD_TERMS = {"陈旧数据": "过期缓存应答", "粘合记录": "胶水记录",
              "授权服务器": "权威服务器", "Q名": "查询名"}
@@ -61,8 +61,8 @@ def main() -> int:
         problems.append(f"缺文件: {', '.join(missing)}")
 
     chapters = [f for f in sorted(SRC.glob("*.md"))
-               if re.match(r"^(?:0[1-9]|1\d|2[0-9]|3[0-6])-", f.name)]
-    info.append(f"章节文件 {len(chapters)}/36，加前言 / 附录 A1 A2 / 版本信息共 {len(list(SRC.glob('*.md')))} 个 md")
+               if re.match(r"^(?:0[1-9]|1\d|2[0-9]|3[0-7])-", f.name)]
+    info.append(f"章节文件 {len(chapters)}/37，加前言 / 附录 A1 A2 / 版本信息共 {len(list(SRC.glob('*.md')))} 个 md")
 
     total_lines = 0
     for f in chapters:

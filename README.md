@@ -105,11 +105,12 @@ by [LeisureLinux](https://github.com/LeisureLinux) · 正文 **CC BY-SA 4.0** ·
 | 29 | [DNS 作为攻击面：隧道、扫描与资产暴露](book/src/29-dns-attack-surface.md) | 隧道外泄检测、massdns 类扫描、悬空 CNAME、Unbound 漏洞加固史 |
 | 30 | [DNS 里的信任数据](book/src/30-dns-trust-records.md) | SPF/DKIM/DMARC、autoconfig、SSHFP、ACME DNS-01、SVCB/HTTPS |
 | 31 | [可观测性栈](book/src/31-observability-stack.md) | dnstap + unbound-control + Prometheus/Grafana + eBPF + 告警 |
-| 32 | [代理与过渡场景里的 DNS](book/src/32-proxy-transition-dns.md) | DoH≠HTTPDNS、Fake-IP、DNS64/NAT64/464XLAT、DNSSEC 冲突 |
+| 32 | [代理与过渡场景里的 DNS](book/src/32-proxy-transition-dns.md) | Fake-IP、DNS64/NAT64/464XLAT、DNSSEC 冲突、域名还原 |
 | 33 | [DHCP 与 DNS 的交接面](book/src/33-dhcp-dns.md) | option 6/15/119/81/252、DHCPv6 23/24/56、动态更新注入攻防 |
 | 34 | [红队视角的 DNS 侦察](book/src/34-redteam-recon.md) | 侦察链、工具形态、观测信号、授权测试纪律 |
 | 35 | [DNS 蜜罐与被动观测](book/src/35-dns-honeypot.md) | 假权威 / sinkhole / 被动 DNS，喂回告警闭环 |
 | 36 | [DNS 故障排查工具箱](book/src/36-troubleshooting.md) | 六层排查顺序、getaddrinfo/RFC 6724 案例、delv/drill/dnstracer、决策表与「哪条命令会骗你」 |
+| 37 | [HTTPDNS：为什么引入、如何用 Unbound 自建、大厂后端如何架构](book/src/37-httpdns.md) | LocalDNS 五个痛点、私有 HTTP API 与 DoH 的界线、Unbound + 前端 + SDK 三层自建、管控层/解析层与 Anycast 边缘集群 |
 
 ---
 

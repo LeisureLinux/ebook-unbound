@@ -20,6 +20,7 @@ keywords:
   - "dot"
   - "doh"
   - "doq"
+  - "httpdns"
   - "qname-minimisation"
   - "serve-stale"
   - "rdnss"

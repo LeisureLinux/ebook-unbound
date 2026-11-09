@@ -17,6 +17,21 @@
   \setCJKmonofont{Noto Sans Mono CJK SC}%
 }{\setCJKmonofont{Noto Sans CJK SC}}
 
+% ---- 1b. Symbols missing from the Latin font ----
+% Pandoc 默认把这些字符交给 Latin Modern Roman（lmroman10）渲染，而该字体
+% 不含圈码①②③、≠、↔、→、■ 等，XeLaTeX 会报 "Missing character" 并在
+% PDF 里留空。它们都在 Noto Serif CJK SC 里有字形，划进 xeCJK 的 CJK 类即可
+% 让主字体/粗体/等宽体统一回落到 CJK 字体。范围按 Unicode 块取整，覆盖全书
+% 23 个章节里出现的这类符号；不要逐字符列举，日后新增符号还得再改。
+% 注意：\xeCJKDeclareCharClass 的区间写作 "start -> "end，且必须在
+% \begin{document} 之前；加 * 变体会调 ResetPunctClass，这里不要加。
+\xeCJKDeclareCharClass{CJK}{
+  "2460 -> "2473 ,   % ①–⑳ 带圈数字
+  "2190 -> "21FF ,   % ← → ↔ 等箭头
+  "2200 -> "22FF ,   % ∀ ≠ ≤ ≥ 等数学符号
+  "25A0 -> "25FF     % ■ ● ◆ 等几何图形
+}
+
 % Add a thin CJK-aware setting for chapter headings
 \renewcommand{\chaptername}{第}
 \renewcommand{\thechapter}{\arabic{chapter}}

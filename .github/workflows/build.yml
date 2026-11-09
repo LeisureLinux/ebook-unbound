@@ -62,12 +62,12 @@ jobs:
           rsvg-convert -w 1200 -h 1600 cover.svg -o cover.png
           ls -la cover.png
 
-      - name: Collect chapters (all 36 required for release)
+      - name: Collect chapters (all 37 required for release)
         id: chapters
         run: |
           cd book
           files="src/00-preface.md"
-          for n in $(seq -w 1 36); do
+          for n in $(seq -w 1 37); do
             f=$(ls src/${n}-*.md 2>/dev/null | head -1)
             if [ -z "$f" ]; then echo "::error::missing chapter ${n}-*.md"; exit 1; fi
             files="$files $f"
