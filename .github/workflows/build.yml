@@ -72,8 +72,8 @@ jobs:
             if [ -z "$f" ]; then echo "::error::missing chapter ${n}-*.md"; exit 1; fi
             files="$files $f"
           done
-          # 附录 A1/A2 在版本信息之前
-          for f in src/A1-*.md src/A2-*.md; do [ -f "$f" ] && files="$files $f"; done
+          # 附录 A / B 在版本信息之前
+          for f in src/A-*.md src/B-*.md; do [ -f "$f" ] && files="$files $f"; done
           c=$(ls src/99-*.md 2>/dev/null | head -1)
           [ -n "$c" ] && files="$files $c"
           echo "files=$files" >> "$GITHUB_OUTPUT"
