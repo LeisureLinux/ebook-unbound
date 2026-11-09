@@ -120,9 +120,12 @@ def main() -> int:
                     if not missing_nav and not missing_ncx else "nav/ncx 目标缺失")
 
         # 4. 目录格式
-        # 顶层章 = <li> 紧跟着的 <a>（Pandoc 3.7 顶层 href 也带 #，不能靠无 # 判断）
+        # 顶层章 = <li> 或 <div class="toc-item">（微信读书专用版）紧跟着的 <a>；
+        # Pandoc 3.7 顶层 href 也带 #，不能靠无 # 判断。
         labels = [re.sub(r"<[^>]+>", "", m.group(1)).strip()
-                  for m in re.finditer(r'<li[^>]*>\s*<a href="[^"]*?ch\d+\.xhtml[^"]*"[^>]*>(.*?)</a>', nav)]
+                  for m in re.finditer(
+                      r'<(?:li|div class="toc-item")[^>]*>\s*'
+                      r'<a href="[^"]*?ch\d+\.xhtml[^"]*"[^>]*>(.*?)</a>', nav)]
         ch_labels = [x for x in labels if re.match(r"^第[一二三四五六七八九十]+章", x)]
         if len(ch_labels) != 37:
             problems.append(f"章级「第X章」条目 {len(ch_labels)} 个，应为 37")

@@ -86,6 +86,9 @@ echo "  [4/5] 前置页 / 目录格式后处理（篇 / 第X章 / Y.n / 附录 /
 python3 scripts/fix-front-matter.py \
   "$OUT/unbound-dns-hardening.epub" "$OUT/unbound-dns-hardening.html" "$VERSION" || true
 
-echo "  [5/5] ePub 结构校验（纯命令行，不依赖 GUI）"
+echo "  [5/5] ePub 校验 + 微信读书专用版"
 python3 scripts/verify-epub.py "$OUT/unbound-dns-hardening.epub" "$VERSION" || echo "  ⚠️ ePub 校验未通过"
+python3 scripts/build-weread-epub.py "$OUT/unbound-dns-hardening.epub" \
+  "$OUT/unbound-dns-hardening-weread.epub" || echo "  ⚠️ 微信读书版生成失败"
+python3 scripts/verify-epub.py "$OUT/unbound-dns-hardening-weread.epub" "$VERSION" || echo "  ⚠️ 微信读书版校验未通过"
 echo "  产物:"; ls -lh "$OUT" 2>/dev/null | sed 's/^/    /' 

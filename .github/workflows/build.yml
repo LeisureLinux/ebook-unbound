@@ -153,12 +153,16 @@ jobs:
           python3 scripts/fix-front-matter.py \
             dist/unbound-dns-hardening.epub dist/unbound-dns-hardening.html "$VERSION"
           python3 scripts/verify-epub.py dist/unbound-dns-hardening.epub "$VERSION"
+          python3 scripts/build-weread-epub.py \
+            dist/unbound-dns-hardening.epub dist/unbound-dns-hardening-weread.epub
+          python3 scripts/verify-epub.py dist/unbound-dns-hardening-weread.epub "$VERSION"
 
       - name: Prepare GitHub Pages site
         run: |
           mkdir -p site
           cp dist/unbound-dns-hardening.pdf  site/unbound-dns-hardening.pdf
           cp dist/unbound-dns-hardening.epub site/unbound-dns-hardening.epub
+          cp dist/unbound-dns-hardening-weread.epub site/unbound-dns-hardening-weread.epub
           cp dist/unbound-dns-hardening.html site/unbound-dns-hardening.html
           cp book/theme/landing.html  site/index.html
           cp book/theme/robots.txt    site/robots.txt
@@ -184,6 +188,7 @@ jobs:
           path: |
             dist/unbound-dns-hardening.pdf
             dist/unbound-dns-hardening.epub
+            dist/unbound-dns-hardening-weread.epub
           retention-days: 30
 
       - name: Attach to GitHub Release (on tags only)
@@ -196,3 +201,4 @@ jobs:
           files: |
             dist/unbound-dns-hardening.pdf
             dist/unbound-dns-hardening.epub
+            dist/unbound-dns-hardening-weread.epub
