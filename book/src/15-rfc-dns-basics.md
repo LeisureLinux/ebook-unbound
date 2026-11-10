@@ -1,5 +1,8 @@
 # 第四篇　RFC 与协议理论 {.unnumbered}
 
+![](images/part4.png){width=70%}
+
+
 # DNS 基础 RFC 族
 
 [RFC 1034] 与 [RFC 1035] 发布于 1987 年 11 月，前者叫 *Domain Names - Concepts and Facilities*，后者叫 *Domain Names - Implementation and Specification*。两者加起来不到两百页，却规定了此后三十多年几乎所有 DNS 行为的骨架：命名空间是树、解析是自上而下的委派、报文是固定首部加四个段、资源记录（resource record, RR）是类型化的键值。

@@ -2,7 +2,6 @@
 
 把 DNS 只当成「把名字换成地址」的服务，会漏掉它的另一面：它是几乎所有网络都默认放行的一条双向通道，也是一份公开可读、长期缓存、跨组织消费的资产清单。前者让 DNS 成为数据外泄与命令控制（command and control，C2）的载体，让递归解析器成为可被滥用的公共资源；后者让一条忘记删除的记录变成别人的入口。这两件事共用同一套观测手段，所以放在一章里讲。
 
-本章的实验环境统一表述为一台家庭网关 + 一台境外云主机，所有地址均为**教学用示例地址**：IPv4 取 `192.0.2.0/24`、`198.51.100.0/24`、`203.0.113.0/24`（[RFC 5737]），IPv6 取 `2001:db8::/32`，域名只用 `example.net` / `example.org` / `home.arpa.`，凭据一律 `<TOKEN>`。排查与扫描示例**只对有授权的名字执行**。配置层面本章不重复第 9 章已插入的出向收敛配置、第 13 章的 QMIN 与 [RFC 8020] 兼容坑、第 10 章的 KeyTrap 细节，只在需要时给出交叉引用。
 
 ## DNS 隧道：把数据编码进查询名
 
@@ -55,7 +54,7 @@ GIAC / SANS 一类资料把它归成 payload 分析与流量分析两类；两�
 
 ### 可复制的 dnstap / jq 巡检骨架
 
-dnstap 是自己的查询流副本（第 7 章已给采集配置与 30 天保留期，本章不重复），它落的是二进制帧。下面的骨架假设 consumer 已把帧转成 JSON Lines，每行含 `ts` / `type` / `client_address` / `qname` / `qtype` / `rcode`；**字段名随 consumer 实现而变，先跑 `head -1 /var/log/dnstap/queries.jsonl | jq 'keys'` 对齐**。全量查询日志本身就是隐私数据，保留期与访问范围按第 7、31 章的边界执行，不要无条件推给第三方 SaaS。
+dnstap 是自己的查询流副本，落的是二进制帧。下面的骨架假设 consumer 已把帧转成 JSON Lines，每行含 `ts` / `type` / `client_address` / `qname` / `qtype` / `rcode`；**字段名随 consumer 实现而变，先跑 `head -1 /var/log/dnstap/queries.jsonl | jq 'keys'` 对齐**。全量查询日志本身就是隐私数据，保留期与访问范围按第 7、31 章的边界执行，不要无条件推给第三方 SaaS。
 
 ```bash
 #!/bin/sh
@@ -129,13 +128,27 @@ jq -r --argjson since "$SINCE" '
 
 缓解的顺序是「先关掉通道，再看得见，最后处置已确认的 IOC」：
 
-1. **客户端不能直连公网 53**，出向只允许内部解析器；内部解析器只向受控上游发查询（第 5 章单上游 + fail-closed，第 9 章已插入的出向收敛节）。本机解析器进程自己的出向 53 要按 uid 豁免，否则会被自己的劫持规则吃掉（第 14 章，本章不重复那段 nftables 配置）。
+1. **客户端不能直连公网 53**，出向只允许内部解析器；内部解析器只向受控上游发查询（第 5 章单上游 + fail-closed，第 9 章已插入的出向收敛节）。本机解析器进程自己的出向 53 要按 uid 豁免，否则会被自己的劫持规则吃掉（第 14 章）。
 2. **把加密传输端点纳入同一策略**：压制 DDR 自动发现、管住 DoH 端点，否则客户端换一条承载就绕过去了（第 11–13 章）。
 3. **dnstap 全量日志 + 明确保留期**（第 7 章的 30 天），这是上面所有检测的来源；没有查询名，payload 与唯一 FQDN 都无从计算。
 4. **RPZ 只用于阻断已确认的域**（官方 RPZ 用法见参考资料），配合 `ratelimit` 一类限速（第 9 章）。RPZ 是事后处置，不是控制措施。
 5. **不要写「封几个域名」当结论**：DGA 会轮换，新域注册成本极低，黑名单永远慢一步。真正的控制面是「谁能向哪里发起 DNS 解析」；域名清单只是这条控制面上的临时补丁。
 
 ## 高速扫描与开放解析器：不提供可被滥用的能力
+
+### Unbound 能不能当「污染源」或红队工具
+
+先给结论：**Unbound 不是投毒工具，也不会替你把伪造应答注入别人的解析器**。它是递归验证器，设计前提恰恰是「只接受能按 DNSSEC 签名链、或按自身清理规则核验的数据」（第 1 章的 2008 年案例、第 10 章的三态验证）。把一台 Unbound 配成向第三方解析器**主动发送伪造应答**，既不属它的功能，也不是这里会写的做法——那需要自己构造 DNS 报文并按对端在途查询的 TXID/端口抢答，属于 [RFC 5452] 讨论的伪造应答范畴，与「配置一台解析器」是两回事。
+
+但有三条**机理上的边界**值得防守方知道，它们决定了「自己手里的 Unbound 会被怎么用」：
+
+| 能力 | Unbound 是否具备 | 防守含义 |
+|---|---|---|
+| 改写**自己**应答给客户端（`local-zone` / `local-data` / RPZ / `respip`） | 具备 | 这是正常的本地策略。一旦该实例被未授权的人控制、或错误地对全网开放递归，策略就能把**信任它的客户端**导向任意地址——所以第 9 章把 `access-control` 默认拒绝放在第一位。 |
+| 作为**开放解析器**被第三方当反射器 / 扫描器 | 配错时具备 | 不是「投毒」，而是放大与免费算力滥用（见下节 [RFC 5358]）。 |
+| 向**别人的**缓存注入伪造应答 | 不具备 | 缓存投毒依赖伪造源、抢在真应答前到达、猜中 TXID/端口；Unbound 没有这个功能面。防守侧靠源端口随机化、0x20、`harden-glue` 与 DNSSEC 验证（第 1、10 章）。 |
+
+授权的红队测试里，Unbound 更常见的角色反而是**观测点**：用 dnstap 记录自己网络里的查询流、验证 DNS 隧道与随机子域信号是否可见（第 31、34 章），或在自建实验拓扑里做一台**受控的**权威/递归来验证防守规则是否生效。这些都不触碰第三方资产。本书不提供任何针对外部解析器的伪造、抢答或规避检测流程；涉及应答改写的章节（第 24 章过滤表、第 9 章 `respip`）一律限定在「自己持有、自己授权的解析器」上。
 
 ### 一套工具，两种用法
 
@@ -201,7 +214,7 @@ jq -r --argjson since "$SINCE" '
 | DS 是否匹配 | `dig +short <zone> DS @<父区权威>` | 与当前 KSK 对应 | 整个区被判 bogus（第 10 章） |
 
 ```bash
-# 教学用示例：执行前把 ZONE / AUTH 换成你自己已授权的区与权威服务器
+# 执行前把 ZONE / AUTH 换成你自己已授权的区与权威服务器
 ZONE=example.org
 AUTH=192.0.2.53    # [RFC 5737] 文档地址，勿直接用于生产
 
@@ -213,7 +226,7 @@ dig +short "$ZONE" DS @"$AUTH"
 dig AXFR "$ZONE" @"$AUTH" +time=2 +tries=1 | head -30    # 只对自己有授权的区域执行
 ```
 
-最后一条的期望是**未授权源拿到拒绝**（transfer failed / REFUSED），只有已登记的从服务器才应看到区内容；把 UDP 与 TCP/53 都测一遍，很多「AXFR 已关」的结论只测了 UDP。DS 一项只做匹配核对，信任锚与验证状态在第 10 章，本章不重复验证器配置。
+最后一条的期望是**未授权源拿到拒绝**（transfer failed / REFUSED），只有已登记的从服务器才应看到区内容；把 UDP 与 TCP/53 都测一遍，很多「AXFR 已关」的结论只测了 UDP。DS 一项只做匹配核对，信任锚与验证状态见第 10 章。
 
 **失败模式**：`dig +short` 输出为空有多种含义（记录不存在、名字不存在、应答被过滤），不能据此判定「资源已下线」；补一次不带 `+short` 的查询看 HEADER 的 rcode 与 AUTHORITY 段。排查结果要落成带日期、执行人的工单，`<TOKEN>` 一类凭据不写进去。
 
@@ -289,7 +302,7 @@ Debian 的 unbound changelog 里出现过 "The DNSBomb attack, via specially tim
 
 **KeyTrap** 与 NSEC3 那一组 DNSSEC 计算放大问题在第 10 章结合验证器配置讲，这里只作一句交叉引用：它同样属于「用有限的计算预算对抗无限的输入组合」这一族问题。
 
-### 本书归纳：Unbound 的加固模式
+### Unbound 的加固模式
 
 下面六条是**本书对公开设计说明与版本公告的归纳**，不是官方原话，也不是「Unbound 免疫这些攻击」的承诺：
 
@@ -326,16 +339,17 @@ Debian 的 unbound changelog 里出现过 "The DNSBomb attack, via specially tim
 ## 本章要点
 
 - DNS 隧道把数据编码进子域标签，靠攻击者控制的权威服务器收上行、靠 TXT / NULL / CNAME 回下行；payload 分析看单条查询（长 QNAME、高熵、罕见 QTYPE），流量分析看聚合行为，其中**单域唯一 FQDN 数**最通用、最抗规避。所有阈值都是需按 7 天基线调整的复核起点，不是阻断线。
-- 缓解的顺序是「出向 53 只准内部解析器 → dnstap 全量查询日志（含保留期）→ 限速 → RPZ 处置已确认域」，**不是封几个域名**：DGA 会轮换，域名黑名单只是事后 IOC。出向收敛配置在第 9、14 章，本章不重复。
+- 缓解的顺序是「出向 53 只准内部解析器 → dnstap 全量查询日志（含保留期）→ 限速 → RPZ 处置已确认域」，**不是封几个域名**：DGA 会轮换，域名黑名单只是事后 IOC。出向收敛配置见第 9、14 章。
 - 开放解析器与高速扫描的整改目标是**不提供可被滥用的服务能力**：默认拒绝递归、experimental 的 `ratelimit` / `ip-ratelimit` 按 `stats_noreset` 基线调、权威侧 RRL、失败应答退避、禁 AXFR 给未授权源。源可分布式、可伪造，所以「封 IP 就行」是 denylist 式的止血而非证明。
 - 暴露面排查以运行中的权威区为准，CT / 被动 DNS / WHOIS-RDAP 只负责找出「以为没有、其实有」的名字；纪律是**只枚举有授权的名字、发现可接管资源不要 claim**（OWASP WSTG 明确要求），只确认指纹并删除自己的悬空记录。
 - 悬空 CNAME 的成因是「DNS 记录是公开指针，不是所有权证明」；NS 接管最高危，cookie 作用域、钓鱼与邮件次之。下线服务要先删 DNS 并等缓存过期，再释放第三方资源；第 13 章的长 CNAME 链案例与第 28 章的故障域隔离说明了链上每一跳都要盘点。
-- 从 2008 Kaminsky 缓存投毒到 [RFC 5452] 伪造韧性，再到 NXNSAttack / DNSBomb / NRDelegation / ReTrap，攻击争抢的都是有限的计算与出向预算；**本书归纳**的 Unbound 加固模式是限额、挂起让出 CPU、分离线程、fail-closed、默认安全、小代码面便于审计，而不是堆功能或堆黑名单。
+- 从 2008 Kaminsky 缓存投毒到 [RFC 5452] 伪造韧性，再到 NXNSAttack / DNSBomb / NRDelegation / ReTrap，攻击争抢的都是有限的计算与出向预算；Unbound 的加固模式是限额、挂起让出 CPU、分离线程、fail-closed、默认安全、小代码面便于审计，而不是堆功能或堆黑名单。
 
 ## 参考资料
 
 - RFC 5358，*Preventing Use of Recursive Nameservers in Reflector Attacks*：https://www.rfc-editor.org/rfc/rfc5358
-- RFC 5452，*Measures for Making DNS More Resilient against Forged Answers*：https://www.rfc-editor.org/rfc/rfc5452
+- RFC 5452，*Measures for Making DNS More Resilient against Forged Answers*（伪造应答的机理与缓解）：https://www.rfc-editor.org/rfc/rfc5452
+- CERT/CC，*VU#800113 — Multiple DNS implementations vulnerable to cache poisoning*（Kaminsky 类投毒的公开披露）：https://www.kb.cert.org/vuls/id/800113
 - RFC 5737，*IPv4 Address Blocks Reserved for Documentation*（本章示例地址段）：https://www.rfc-editor.org/rfc/rfc5737
 - Unbound 官方手册，`unbound.conf(5)`（`access-control`、`ratelimit` / `ip-ratelimit`、RPZ 与 hardened 相关选项及默认值）：https://unbound.docs.nlnetlabs.nl/en/latest/manpages/unbound.conf.html
 - Unbound 官方手册，Response Policy Zones 专题（已确认域的阻断用法）：https://unbound.docs.nlnetlabs.nl/en/latest/topics/filtering/rpz.html

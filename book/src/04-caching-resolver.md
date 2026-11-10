@@ -1,8 +1,11 @@
 # 第二篇　按角色配置 Unbound {.unnumbered}
 
+![](images/part2.png){width=70%}
+
+
 # 缓存解析器：最小可用配置
 
-一台家庭网关 + 一台境外云主机的实验环境里，第一件要跑起来的东西不是加密传输，也不是过滤表，而是一台能被 `dig` 问通、能被 `unbound-control stats` 看见的缓存解析器（caching resolver）。本章的所有地址都是教学用示例地址：IPv4 取 `192.0.2.0/24`、`198.51.100.0/24`、`203.0.113.0/24`（[RFC 5737]），IPv6 取 `2001:db8::/32`（[RFC 3849]），内网统一写成 `192.168.68.0/24` 与 ULA `fd00::/64`，不对应任何真实拓扑。
+一台家庭网关 + 一台境外云主机的实验环境里，第一件要跑起来的东西不是加密传输，也不是过滤表，而是一台能被 `dig` 问通、能被 `unbound-control stats` 看见的缓存解析器（caching resolver）。
 
 这一章只处理"缓存解析器"这一个角色：它自己做递归、自己维护缓存、对下游表现为一台可用的递归解析器。转发器（forwarder）在第 5 章，本地根区镜像在第 6 章，DNSSEC 验证在第三篇第 10 章，QNAME 最小化（QNAME minimisation，QMIN）的参数在第三篇第 13 章，都不在这里展开。
 
@@ -11,7 +14,7 @@
 先给一台什么都还没配的机器写出最小可用配置。下面这十行是完整文件，不是片段（注释行不计入十行）：
 
 ```yaml
-# /etc/unbound/unbound.conf.d/10-minimal.conf —— 教学用示例地址
+# /etc/unbound/unbound.conf.d/10-minimal.conf
 server:
   interface: 127.0.0.1
   interface: ::1
@@ -50,7 +53,7 @@ dig @127.0.0.1 example.org A +short
 ## 把监听面从回环扩到 LAN
 
 ```yaml
-# /etc/unbound/unbound.conf.d/20-listen.conf —— 教学用示例地址
+# /etc/unbound/unbound.conf.d/20-listen.conf
 server:
   interface: 192.0.2.1
   interface: 2001:db8::1
@@ -95,7 +98,7 @@ server:
 
 **为什么这么设**：`username` 的默认值就是 `unbound`，语义是"绑定端口之后降权"；显式写出来是为了让审计的人一眼看到降权意图，也为了配合第 6 章按 uid 做 nftables 豁免——那里需要知道进程到底跑在哪个 uid 下。`username: ""` 表示不降权，只用于排障，不要留在生产配置里。
 
-`chroot` 需要谨慎：一旦启用，配置文件里所有相对路径都在 chroot 内解释，`include` 相对路径、`pidfile`、`logfile`、密钥文件、根区 zonefile 都要重新对齐；AppArmor / SELinux 的路径白名单也要跟着改（第 7 章会讲过滤表大表与 AppArmor 的冲突）。本章给 `chroot: ""` 是明确选择"暂不启用"，把复杂度留给真正需要它的部署；不要半开半关——写了 chroot 却没把 `tls-cert-bundle`、`auto-trust-anchor-file` 等文件的路径搬进去，是启动即失败的经典原因。
+`chroot` 需要谨慎：一旦启用，配置文件里所有相对路径都在 chroot 内解释，`include` 相对路径、`pidfile`、`logfile`、密钥文件、根区 zonefile 都要重新对齐；AppArmor / SELinux 的路径白名单也要跟着改。这里给 `chroot: ""` 是明确选择"暂不启用"；写了 chroot 却没把 `tls-cert-bundle`、`auto-trust-anchor-file` 等文件的路径搬进去，是启动即失败的经典原因。
 
 `hide-identity: yes` 让 `id.server` / `hostname.bind` 这类 CHAOS 类查询回 `REFUSED`，`hide-version: yes` 对 `version.server` / `version.bind` 同样处理。两者默认都是 `no`，`identity: ""` 时会返回主机名，`version: ""` 时会返回真实版本串。这是减少暴露面，不是访问控制；真正挡住外部查询的是 `access-control` 与 `interface`。
 
@@ -128,6 +131,8 @@ server:
 `1232` 是 DNS Flag Day 2020 的推荐值，Unbound 官方手册把它同时作为两个选项的默认值。它的来历是 IPv6 最小 MTU 1280：1280 减去 40 字节 IPv6 首部、8 字节 UDP 首部，得到 1232。于是在 MTU 1280 的链路上（WireGuard、部分 IPv6 隧道）一个 1232 字节的 DNS 应答恰好是不分片的单包。若改成 `1472`，在 MTU 1280 上必然分片；在 PPPoE 的 1492 MTU 上同样会踩到分片边界（1472 是按以太网 1500 减 28 算出来的，PPPoE 少了 8 字节）。IP 分片在不少家宽 / 云链路上被丢弃，结果不是立刻报错，而是"UDP 等超时 → 重试 TCP"，表现为偶发的解析慢、DNSSEC 验证超时、大应答域名随机 SERVFAIL。
 
 **关键区分**：`max-udp-size` 只管入向。上游被你的大缓冲区撑爆的场景，要靠 `edns-buffer-size` 收敛，光调 `max-udp-size` 没用。另外官方手册提醒 `edns-buffer-size` 不要设得高于 `msg-buffer-size`（该值默认 65552），设成 512 虽然能绕过最严苛的 PMTU 问题，但会制造过量 TCP 回退，属于过度矫正。
+
+**PMTU 是什么**：PMTU 全称 **Path MTU**（路径最大传输单元），指一条端到端路径上**所有链路里最小的那个 MTU**——不是本机网卡的 MTU，而是整条路（含隧道、PPPoE、运营商封装）的瓶颈值。IPv6 规定最小 MTU 为 1280，隧道再叠加一层封装只会更小；PPPoE 常见 1492。**PMTU 问题**就是「发出的包大于路径能承载的大小，又没被正确发现」：IPv4 可能由路由器分片，IPv6 则由源端分片或依赖 PMTUD（Path MTU Discovery）；一旦中间设备丢弃分片或 ICMPv6 Packet Too Big 被防火墙挡掉，表现为**大包静默消失、等超时再重试**。DNS 里这正是 1472 出事的机理：应答 UDP 包超过 PMTU → 分片被丢 → 客户端等超时 → 重试 TCP。EDNS(0)（**Extension Mechanisms for DNS (Version 0)**，[RFC 6891]）的 1232 就是按「IPv6 最小 MTU 1280 减 40 字节 IPv6 头、8 字节 UDP 头」算出的保守值。
 
 **怎么验证**：
 
@@ -177,7 +182,7 @@ sysctl net.core.rmem_max
 
 ## serve-expired 全家：先刷新，超时才回过期缓存
 
-术语统一：本书把"用过期缓存应答"统一叫**过期缓存应答（serve-stale）**，配置项则按原样写 `serve-expired*`。这一组参数在 Unbound 里有两种模式，理解它们靠 `serve-expired-client-timeout`：
+下文把"用过期缓存应答"叫**过期缓存应答（serve-stale）**，配置项按原样写 `serve-expired*`。这一组参数在 Unbound 里有两种模式，理解它们靠 `serve-expired-client-timeout`：
 
 ```yaml
 # /etc/unbound/unbound.conf.d/60-serve-expired.conf

@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1200" viewBox="0 0 900 1200">
+<defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="0.6" y2="1">
+    <stop offset="0%" stop-color="#0d0d27"/><stop offset="60%" stop-color="#16173f"/>
+    <stop offset="100%" stop-color="#0d0d27"/></linearGradient>
+  <linearGradient id="facet" x1="0" y1="0" x2="1" y2="0">
+    <stop offset="0%" stop-color="#0d0d27"/><stop offset="50%" stop-color="#2d2e83"/>
+    <stop offset="100%" stop-color="#0d0d27"/></linearGradient>
+  <radialGradient id="glow"><stop offset="0%" stop-color="#1fc2d7" stop-opacity="0.18"/>
+    <stop offset="100%" stop-color="#1fc2d7" stop-opacity="0"/></radialGradient>
+</defs>
+<rect width="900" height="1200" fill="url(#bg)"/>
+<circle cx="450" cy="430" r="330" fill="url(#glow)"/>
+<g font-family="DejaVu Sans, Noto Sans CJK SC, sans-serif">
+  <text x="60" y="90" fill="#1fc2d7" font-size="22" letter-spacing="6">DNS / UNBOUND</text>
+  <line x1="60" y1="108" x2="840" y2="108" stroke="#1fc2d7" stroke-width="1.5" opacity="0.45"/>
+</g>
+<path d="M450 170 L680 260 L680 600 C680 780 560 900 450 960 C340 900 220 780 220 600 L220 260 Z" fill="url(#facet)" opacity="0.75"/><path d="M450 170 L680 260 L680 600 C680 780 560 900 450 960 C340 900 220 780 220 600 L220 260 Z" fill="none" stroke="#1fc2d7" stroke-width="3"/><path d="M220 260 L450 350 L680 260" fill="none" stroke="#1fc2d7" stroke-width="2" opacity="0.6"/><path d="M450 350 L450 960" fill="none" stroke="#1fc2d7" stroke-width="1.5" opacity="0.35"/><g fill="none" stroke="#5eead4" stroke-width="4"><path d="M390 540 L390 500 C390 455 510 455 510 500 L510 540"/></g><rect x="370" y="540" width="160" height="120" rx="14" fill="#1289a8" opacity="0.75"/><circle cx="450" cy="592" r="14" fill="#0d0d27"/><rect x="445" y="592" width="10" height="34" rx="5" fill="#0d0d27"/><g font-family="DejaVu Sans, Noto Sans CJK SC, sans-serif" font-size="17" fill="#e2e8f0" text-anchor="middle"><rect x="285" y="702" width="330" height="44" rx="6" fill="#2d2e83" opacity="0.6"/><text x="450" y="730">DNSSEC</text><rect x="285" y="764" width="330" height="44" rx="6" fill="#2d2e83" opacity="0.6"/><text x="450" y="792">DoT / DoH</text><rect x="285" y="826" width="330" height="44" rx="6" fill="#2d2e83" opacity="0.6"/><text x="450" y="854">QMIN · DDR</text></g><circle cx="450" cy="170" r="12" fill="#f26521"/>
+<line x1="330" y1="1100" x2="570" y2="1100" stroke="url(#facet)" stroke-width="2" opacity="0.6"/>
+</svg>

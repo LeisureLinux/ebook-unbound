@@ -4,14 +4,16 @@
 
 代价是这台实例必须有**真实可用的出向 53**：初次 AXFR 拉根区、后续 SOA 探测 / IXFR 更新都要用。这正是本章最容易翻车的地方，6.6 节会单独讲。
 
-实验环境仍是一台家庭网关 + 一台境外云主机，以下为教学用示例地址：IPv4 用 `192.0.2.0/24`、`198.51.100.0/24`、`203.0.113.0/24`（[RFC 5737]），IPv6 用 `2001:db8::/32`（[RFC 3849]），内网写 `192.168.68.0/24`、ULA 写 `fd00::/64`，主机名统一 `gw-01` / `edge-01` / `cloud-01`，不声明是真实环境。**根服务器地址一律写成示意地址**（例如 `198.51.100.53`），实际部署时应换成权威机构公开的根服务器地址，不要照抄本书的文档地址段。
+**AXFR / IXFR 是什么**：两者都是 DNS 的**区域传送**协议，定义在 [RFC 1035] 与 [RFC 1995]。**AXFR** 全称 **Authoritative (Full) Zone Transfer**（全量区域传送）：把整个区的所有记录一次性传过来，首次建镜像、或序列号差距太大时用。**IXFR** 全称 **Incremental Zone Transfer**（增量区域传送）：只传「自某个序列号以来改了哪些记录」，靠 SOA 序列号比对触发，日常更新靠它，流量远小于 AXFR。注意这是**权威服务器到权威服务器/递归器的传送协议**，不是普通递归查询；Unbound 自己不提供 AXFR / IXFR 服务端（第 25 章写过它的"非常有限的权威服务"），所以本章要请 NSD 出面。
+
+实验环境仍是一台家庭网关 + 一台境外云主机。**根服务器地址一律写成示意地址**（例如 `198.51.100.53`），实际部署时应换成权威机构公开的根服务器地址。
 
 ## auth-zone 的四个开关
 
 `auth-zone` 是 Unbound 的"权威区"机制：把一份区数据装进本机，按两个不同阶段参与应答。配根区镜像就是配一个 `name: "."` 的 `auth-zone`。
 
 ```yaml
-# /etc/unbound/unbound.conf.d/60-auth-zone.conf —— 教学用示意地址
+# /etc/unbound/unbound.conf.d/60-auth-zone.conf
 auth-zone:
   name: "."
   primary: 198.51.100.53
@@ -38,7 +40,9 @@ auth-zone:
 
 `fallback-enabled: yes` 是可用性兜底：区数据过期、验证失败或 AXFR 全挂时，退回正常的互联网递归而不是全量 SERVFAIL。官方手册明确，区数据到达 SOA expiry 后会过期，过期时查询返回 SERVFAIL，此时若 fallback 开启就改走上游递归。取舍是：开启后镜像失效时仍可解析（但失去"根不出本机"的收益），关闭后故障立刻可见。教学环境建议先开，观察稳定后再按策略收紧。
 
-`primary` 可以写多条，也可以追加 `@端口` 或 `#认证名`（后者用于 AXFR over TLS）；官方手册提醒**不要把 `primary` 写成需要靠这份区数据本身才能解析的主机名**，否则形成循环依赖，用纯 IP 最稳。还有一条容易踩：把 `primary` 指向另一个 Unbound 实例是无效的，因为 Unbound 不提供 AXFR / IXFR 服务；这也是 6.2 节要引入 NSD 的原因。
+`primary` 可以写多条，也可以追加 `@端口` 或 `#认证名`。**认证名**是 `#` 后面那个字符串：启用 AXFR over TLS（XFR-over-TLS，[RFC 9103]）时，它指定**要拿去核对上游 TLS 证书的名字**——客户端会检查证书 SAN / CN 是否与这个名字一致，不是随便填的标签。不写 `#` 时按官方手册「不校验特定主体」，只靠 CA 信任链；这与第 11 章 `forward-addr: IP@853#认证名` 里的 `#` 是同一套语义（`@` 在前、`#` 在后）。纯明文 AXFR over TCP/53 不需要 `#`。
+
+官方手册还提醒**不要把 `primary` 写成需要靠这份区数据本身才能解析的主机名**，否则形成循环依赖，用纯 IP 最稳。还有一条容易踩：把 `primary` 指向另一个 Unbound 实例是无效的，因为 Unbound 不提供 AXFR / IXFR 服务；这也是 6.2 节要引入 NSD 的原因。
 
 **怎么验证**：
 
@@ -52,10 +56,26 @@ dig @127.0.0.1 . NS +norecurse +short | head
 
 ## 用 NSD 做本地根镜像
 
+### NSD 是什么，为什么它是 Unbound 的兄弟项目
+
+**NSD（Name Server Daemon）** 是 NLnet Labs 的另一个开源 DNS 实现，只做**权威服务器**这一半：持有区文件、对区内名字给出权威应答（AA 位）、支持 AXFR / IXFR 区域传送与 TSIG，但**不做递归、不做 DNSSEC 验证、不缓存客户端查询**。它与 Unbound 出自同一个组织、共享一部分代码与工程习惯（BSD 许可、按角色收窄边界），正好互为镜像：
+
+| | NSD | Unbound |
+|---|---|---|
+| 角色 | 权威服务器（authoritative） | 递归验证器（recursive / validating） |
+| 应答带 | AA（权威） | RA + 验证通过时 AD |
+| 区数据 | 自己持有 zonefile，可提供 AXFR | 通过 `auth-zone` 拉一份副本，或 `local-zone` 少量静态数据 |
+| 递归 | 不做 | 核心职责 |
+| 动态更新 [RFC 2136] | **不支持**（第 25 章） | 不支持 |
+
+Unbound 的需求文档把「不做权威服务器」列为明确的非目标；本机根镜像需要一台能**对外提供 AXFR** 的权威服务器，Unbound 自己干不了，于是 NSD 出场。这不是「再加一个产品」，而是把书名里那条角色边界补齐。
+
+### `nsd.conf` 逐项
+
 Unbound 自己不能对外提供 AXFR，所以本机根镜像的常见形态是：**NSD 持有一份根区 zonefile 并允许本机 AXFR，Unbound 通过 `auth-zone` 从 NSD 拉取**。这一步把 `primary` 从"远端根服务器"换成"本机 NSD"，也让 6.6 节的出向 53 豁免问题更直观。
 
 ```yaml
-# /etc/nsd/nsd.conf.d/root-mirror.conf （NSD 配置，非 unbound.conf）—— 教学用示意地址
+# /etc/nsd/nsd.conf.d/root-mirror.conf （NSD 配置，非 unbound.conf）
 server:
   ip-address: 127.0.0.1@5355
   ip-address: ::1@5355
@@ -74,7 +94,22 @@ zone:
   request-xfr: AXFR 198.51.100.53 NOKEY
 ```
 
-**为什么这么设**：NSD 是权威服务器（authoritative server），正好补上 Unbound 缺的那一半能力。`zone: name "."` 声明它持有根区；`provide-xfr` 允许本机回环地址来做 AXFR；`request-xfr: AXFR <上游根服务器> NOKEY` 让 NSD 主动从真正的根服务器拉一份根区并保持更新。这里 `<上游根服务器>` 是示意地址，实际部署换成公开根服务器地址；`NOKEY` 表示本例不用 TSIG，若上游要求签名认证则按 NSD 手册配置密钥，密钥一律写 `<TOKEN>` / `***`，不要出现真实凭据。
+**① 为什么这么设**（逐项，不是整段笼统解释）：
+
+| 选项 | 作用 | 配错的后果 |
+|---|---|---|
+| `server.ip-address: 127.0.0.1@5355` | 只听回环、非默认端口 | 听 `0.0.0.0` 会把一台权威服务器暴露到全网；端口要与 Unbound 的 `primary` 一致 |
+| `do-ip4` / `do-ip6` | 是否启用对应地址族 | 关掉 v6 却给 `::1` 地址会启动失败 |
+| `username: nsd` | 降权运行 | 必须与实际 uid 一致，6.6 节的 nft `meta skuid` 豁免按它写 |
+| `zonesdir` / `zonefile` | 区文件目录与相对文件名 | `zonefile` 用相对名时以 `zonesdir` 为基准；路径需对 `nsd` 用户可读 |
+| `zone.name: "."` | 声明持有**根区** | 写成别的区名，AXFR 拉来的数据就对不上 |
+| `provide-xfr: 127.0.0.1 NOKEY` | 允许**本机 Unbound** 来拉 AXFR | 漏掉这一行是最常见的故障：Unbound 侧 `auth-zone` 一直建不起来，`dig . AXFR` 返回 `Transfer failed` |
+| `request-xfr: AXFR <上游> NOKEY` | NSD 作为**从服务器**主动从真实根服务器拉区 | 只配 `provide-xfr` 不配它，本机区文件永远是空的/旧的 |
+| `NOKEY` | 本例不用 TSIG | 上游若要求签名认证，改用 `key:` 段定义密钥并在 `request-xfr` 里引用；密钥一律 `<TOKEN>` |
+
+`NOKEY` 表示本例不用 TSIG，若上游要求签名认证则按 NSD 手册配置密钥，密钥一律写 `<TOKEN>` / `***`，不要出现真实凭据。这里 `<上游根服务器>` 是示意地址，实际部署换成公开根服务器地址。
+
+还有一条容易忽略：**`allow-query`**。不写它时 NSD 默认允许任何来源查询；本例只听回环所以影响有限，但若将来把 NSD 放到独立主机上，应显式写 `allow-query: <Unbound 的地址> NOKEY`，别让一台权威服务器顺带变成对全网开放的查询点。TSIG 密钥用 `key:` 段定义（`algorithm` / `secret`），再由 `provide-xfr` / `request-xfr` / `allow-notify` 按名字引用。
 
 注意 NSD 与 Unbound 的 uid 不同：这里分别是 `nsd` 与 `unbound`。6.6 节的 nftables 豁免必须**两个 uid 都覆盖**。
 
@@ -90,9 +125,9 @@ auth-zone:
   zonefile: /var/lib/unbound/root.zone
 ```
 
-**为什么这么设**：`primary` 是回环地址，Unbound 侧还需要 `do-not-query-localhost: no`（第 5 章讲过适用条件：本机另一实例是设计中的下一跳，且端口不冲突）。这里 5355 是 NSD、Unbound 监听 53 / 5354，pidfile 与缓存目录各自独立，拓扑不成环：NSD 只做权威，不向 Unbound 发查询。
+**为什么这么设**：`primary` 是回环地址，Unbound 侧还需要 `do-not-query-localhost: no`（适用条件：本机另一实例是设计中的下一跳，且端口不冲突）。这里 5355 是 NSD、Unbound 监听 53 / 5354，pidfile 与缓存目录各自独立，拓扑不成环：NSD 只做权威，不向 Unbound 发查询。
 
-**怎么验证**（NSD 配置用 `nsd-checkconf` 校验，不要用 `unbound-checkconf`）：
+**② 怎么验证**（NSD 配置用 `nsd-checkconf` 校验，不要用 `unbound-checkconf`）：
 
 ```bash
 nsd-checkconf /etc/nsd/nsd.conf
@@ -101,9 +136,13 @@ dig @127.0.0.1 -p 5355 . AXFR +norecurse | head -20
 unbound-control stats_noreset | grep -E 'num.queries|num.cachemiss'
 ```
 
-第二条应回一条根区 SOA；第三条应看到 NS / A / AAAA 胶水记录成批输出——这是 AXFR 真的可用的直接证据。若 AXFR 被拒，检查 `provide-xfr` 与 NSD 实际监听地址是否一致。
+第二条应回一条根区 SOA（应答带 `aa`）；第三条应看到 NS / A / AAAA 胶水记录成批输出——这是 AXFR 真的可用的直接证据。若 AXFR 被拒，按这个顺序查：① `nsd.conf` 里有没有 `provide-xfr`；② 它列的 IP 与 NSD 实际监听地址是否一致；③ Unbound 侧 `primary` 写的是 `@端口` 还是 `#认证名`（第 6.1 节已交代，`#` 是 TLS 认证名不是端口）；④ 出向 TCP/53 是否被 nftables 吃掉（6.6 节）。
 
-**失败模式 / 回滚点**：`request-xfr` 指向的示意地址不可达时，NSD 手里只有空区或旧区，Unbound 拉到的就是空数据。回滚：把 `auth-zone` 的 `primary` 改回直连真实根服务器（6.3 节），或临时撤掉 `auth-zone` 让 Unbound 用内置根提示递归。
+**③ 失败模式 / 回滚点**：最典型的是「SOA 查得到、AXFR 拿不到」——`dig . SOA` 正常但 `dig . AXFR` 返回 `Transfer failed`，八成是 `provide-xfr` 缺失或 ACL 不对；另一种是区文件一直不更新，`stat` 看 `zonesdir` 下 `root.zone` 的 mtime 没前进，查 `request-xfr` 与出向 TCP。回滚：撤掉 Unbound 侧 `auth-zone` 段并 restart，`fallback-enabled: yes` 会让解析退回内置根提示，业务不中断；NSD 可以单独停，不影响客户端。
+
+### 与 Unbound 的其它搭配
+
+除根镜像外，NSD 在本书里还出现两次：第 25 章讨论内网 DDNS 时，它作为「能持有权威区、但不接受 [RFC 2136] 动态更新」的实现，说明为什么「把 Unbound 的 DDNS 配一下」是句没有对应配置的话；第 35 章的假权威 / 蜜罐里，NSD 用来给诱饵域提供受控应答。三处用法是同一个角色：**权威数据由 NSD 持有，Unbound 只负责查到结果**。如果内网要做 split-horizon（内外网不同视图），正确做法是 NSD 侧配 `allow-query` 与不同 zonefile，或 Unbound 侧用 `local-zone` / `stub-zone` 分开，而不是指望一台 Unbound 同时当权威和递归。
 
 ## 直连 AXFR 的实测形态
 
@@ -196,7 +235,7 @@ auth-zone:
 因此 `zonefile` 不只是"顺手存个档"，它是**冷启动可用性**的一部分。三个工程约束：
 
 1. 路径必须对 `username: unbound` 降权后的进程可写；同时若启用了 `chroot`（第 4 章），路径在 chroot 内解释，要一并搬进去。
-2. AppArmor / SELinux 需要放行该路径的读写；第 7 章会讲过滤表大表与 AppArmor 路径白名单的冲突，根区 zonefile 同样受这条限制。
+2. AppArmor / SELinux 需要放行该路径的读写；过滤表大表与 AppArmor 路径白名单的冲突同样适用于根区 zonefile。
 3. 目录要持久（`/var/lib/unbound/`），不要放在 `/run` 或 tmpfs 上——否则"配了 zonefile"和"没配"在重启后是同一回事。
 
 官方手册还有个相关提醒：区过期（SOA expiry 到达）时查询会 SERVFAIL，且此后**即便主服务器发来更旧的序列号也会被接受**，因为本地已经没有可用副本了；此时 `fallback-enabled` 才会切到互联网递归。这意味着 zonefile 的时间戳与 SOA 序列号是排障时最先要看的两个值。
@@ -214,7 +253,7 @@ sudo -u unbound test -w /var/lib/unbound/root.zone && echo writable
 
 ## 出向 53 必须按 uid 豁免，否则自己吃掉自己
 
-这是本章的核心故障机理，也是全书"排查网络故障先看 nftables 规则"的最典型例子。
+这是本章的核心故障机理。
 
 策略网关常把 LAN / WG 侧发往 53 的查询劫持进透明代理（`hijack-dns`），让所有客户端的 DNS 强制走本地解析器。规则一般挂在 `output-tproxy` 一类链上。问题在于：**本机解析器进程自己发出的出向 53 也会被这条规则匹配**。Unbound 要向根服务器发 SOA 探测 / AXFR，NSD 要向根服务器发 `request-xfr`，这些包同样从本机 `output` 出去，同样目的端口 53，于是被送回 tproxy，落到别的解析器或代理上——甚至形成环。
 
@@ -234,7 +273,7 @@ table inet filter {
     meta skuid nsd     tcp dport 53 accept
 
     # 下面才是原本对 LAN / WG 客户端的劫持规则（示意）
-    # ip saddr 192.168.68.0/24 udp dport 53 meta mark set 0x2332
+    # ip saddr 192.0.2.0/24 udp dport 53 meta mark set 0x2332
     # ...
   }
 }
@@ -300,7 +339,7 @@ echo '== 6. 镜像失效演练 =='
 
 **失败模式 / 回滚点**：`nft flush chain` 会把整条链清空，若链里还有别的规则必须逐条删除而不是 flush。所有变更的回滚点都是配置文件 + 一份 nftables 备份；根区 zonefile 本身是可重新拉取的派生数据，删掉不会损坏系统。
 
-最后提醒角色边界：本章的镜像仍要求本机有出向 53，因此它**不是**第 5 章转发器的替代品，也不是无网环境下的完整方案。DNSSEC 验证的配置与信任锚放在第三篇第 10 章；QMIN 的参数与兼容坑在第三篇第 13 章；本地根镜像只是让根那一跳不出口，所以 QMIN 的收益落在 TLD 层，这里不展开。
+镜像仍要求本机有出向 53，因此它**不是**第 5 章转发器的替代品，也不是无网环境下的完整方案。本地根镜像只让根那一跳不出口，QMIN 的收益落在 TLD 层。
 
 ## 本章要点
 
@@ -315,9 +354,13 @@ echo '== 6. 镜像失效演练 =='
 
 - Unbound 官方手册，`unbound.conf(5)` 的 Authority Zone Options（`auth-zone`、`primary`、`fallback-enabled`、`for-upstream`、`for-downstream`、`zonefile`）：https://unbound.docs.nlnetlabs.nl/en/latest/manpages/unbound.conf.html
 - Unbound 官方手册，`unbound.conf(5)` 的 `root-hints` 与 server options：https://unbound.docs.nlnetlabs.nl/en/latest/manpages/unbound.conf.html
-- NLnet Labs，NSD 官方配置手册（`nsd.conf` 的 `request-xfr` / `provide-xfr`）：https://nsd.docs.nlnetlabs.nl/en/latest/manpages/nsd.conf.html
+- RFC Editor，[RFC 9103] *DNS Zone Transfer over TLS*：https://www.rfc-editor.org/rfc/rfc9103
+- NLnet Labs，NSD 官方配置手册（`nsd.conf(5)` 的 `zone` / `provide-xfr` / `request-xfr` / `allow-query` / `key`）：https://nsd.docs.nlnetlabs.nl/en/latest/manpages/nsd.conf.html
+- NLnet Labs，NSD 项目页（权威服务器定位）：https://nlnetlabs.nl/projects/nsd/about/
 - Unbound 官方手册，`unbound-control(8)` 的 `lookup` / `flush_zone` 等命令：https://unbound.docs.nlnetlabs.nl/en/latest/manpages/unbound-control.html
 - IANA，根区与根服务器信息入口：https://www.iana.org/domains/root/servers
-- RFC 1034，*Domain names - concepts and facilities*（胶水记录与委派）：https://www.rfc-editor.org/rfc/rfc1034
+- RFC Editor，[RFC 1995] *Incremental Zone Transfer in DNS*（IXFR）：https://www.rfc-editor.org/rfc/rfc1995
+- RFC Editor，[RFC 9103] *DNS Zone Transfer over TLS*：https://www.rfc-editor.org/rfc/rfc9103
+- RFC Editor，[RFC 1034]，*Domain names - concepts and facilities*：https://www.rfc-editor.org/rfc/rfc1034
 - RFC 5936，*DNS Zone Transfer Protocol (AXFR)*：https://www.rfc-editor.org/rfc/rfc5936
 - RFC 1995，*Incremental Zone Transfer in DNS*（IXFR）：https://www.rfc-editor.org/rfc/rfc1995

@@ -10,9 +10,11 @@
 
 DNS 的命名空间是一棵树，根（root）写作 `.`，往下依次是顶级域（TLD，如 `org`）、二级域（如 `example.org`）、以及更下层的名字。完整域名（FQDN）从最具体的标签一路写到根，例如 `www.example.org.`，末尾那个点表示根；日常书写常省略最后一个点，但**在配置文件里省略与不省略语义不同**，这是运维踩坑的高频来源之一。
 
-每个标签最长 63 字节，完整域名总长不超过 253 字节（ wire 格式下的常见表述）。名字不区分大小写，但 DNS 报文会保留查询名的大小写——这一性质后来被 0x20 编码用作额外的熵来源，第 1 章提到过。
+每个标签最长 63 字节，完整域名总长不超过 253 字节（wire 格式下的常见表述）。这里先交代 **wire format**：它指 DNS 报文在**线路上传输时的二进制格式**，由 [RFC 1035] 定义——固定 12 字节报文头（ID / 标志 / 各段计数）+ question / answer / authority / additional 四段，名字用「长度字节 + 标签」的编码，类型与类别用数字而非文本。「同一份 DNS wire format 装在 UDP/53、TCP/53、DoT、DoH 里」指的就是这一串字节；DoH 只是换了个外壳，HTTPDNS（第 37 章）则连这串字节都没有。名字不区分大小写，但 wire 报文会保留查询名的大小写——这一性质后来被 0x20 编码用作额外的熵来源，第 1 章提到过。
 
-树上的每个节点可以拥有一组**资源记录（resource record, RR）**。相同名字、相同类型、相同类别的记录组成一个 **RRset（资源记录集）**，RRset 是缓存与 DNSSEC 签名的基本单位，不是单条记录。理解这一点很重要：TTL 作用于 RRset，签名也覆盖整个 RRset；"一条 A 记录过期了"严格说应是"这个 A RRset 的 TTL 到了"。
+树上的每个节点可以拥有一组**资源记录（resource record, RR）**。相同名字、相同类型、相同类别的记录组成一个 **RRset（resource record set，资源记录集）**，RRset 是缓存与 DNSSEC 签名的基本单位，不是单条记录。理解这一点很重要：TTL 作用于 RRset，签名也覆盖整个 RRset；"一条 A 记录过期了"严格说应是"这个 A RRset 的 TTL 到了"。
+
+**RRset 举例**（这是最常见的一处误解）：针对 `www.example.org.` 查到一条 A 记录和一条 AAAA 记录，它们**不是同一个 RRset**——类型不同（A / AAAA）、名字类别相同，但 RRset 按 `(owner, type, class)` 划分，所以是两个 RRset：A RRset 与 AAAA RRset，各自有各自的 TTL 与 RRSIG。同理 MX 记录是**另一个** RRset；一个 MX RRset 里可以有多条 MX 记录（不同优先级），它们共享一个 TTL、被**一条** RRSIG 整体签名。`www.example.org.` 若有两条 A 记录（例如 `192.0.2.10` 与 `192.0.2.11`），这两条才属于**同一个** A RRset。缓存里刷 `www.example.org A` 只会淘汰 A RRset，不会动 AAAA / MX。
 
 ### 区域与委派
 
@@ -46,11 +48,10 @@ DNS 的命名空间是一棵树，根（root）写作 `.`，往下依次是顶�
 
 **迭代查询（iterative query）** 的意思是：被问的服务器不替你继续跑，只给出它知道的最好的答案——可能是最终记录，也可能是"我不知道，但你可以去问这几台"（ referral，指引应答）。递归解析器向根、TLD、各级权威服务器发出的，就是这种不带 RD 的迭代查询：每得到一次 referral，就换一台服务器再问，直到拿到答案或明确的不存在证明。
 
-于是"递归解析器"这个名字其实描述的是**它对客户端的承诺**，而不是它对外的工作方式：对客户端它做递归，对上级它做迭代。这是全书最需要一次讲清的概念，第 3 章会把它拆成四种角色。
+于是"递归解析器"这个名字其实描述的是**它对客户端的承诺**，而不是它对外的工作方式：对客户端它做递归，对上级它做迭代。第 3 章会把它拆成四种角色。
 
 ### 一次 `www.example.org` 的追踪
 
-下面用一次教学用的查询把整条链走一遍。示例域名使用保留域名，`192.0.2.0/24` 与 `2001:db8::/32` 为 RFC 5737 / RFC 3849 文档地址段，**以下为教学用示例地址**，不代表任何真实环境。
 
 假设本机存根解析器把查询交给一台本地递归解析器，缓存为空：
 
@@ -59,8 +60,8 @@ DNS 的命名空间是一棵树，根（root）写作 `.`，往下依次是顶�
 3. **递归解析器 → `org` 的权威服务器**：同样问 `www.example.org. A?`，不带 RD。`org` 返回对 `example.org` 的 referral。
 4. **递归解析器 → `example.org` 的权威服务器**：`www.example.org. A?`，不带 RD。这里可能出现三种结果：
    - 直接给出 `www.example.org` 的 A / AAAA RRset，带 AA；
-   - 给出一条 CNAME，指向另一个名字，于是从第 4 步重新开始（见 2.4 节）；
-   - 给出 NXDOMAIN 或 NODATA，表示名字不存在或该类型不存在（见 2.3.4 节）。
+   - 给出一条 CNAME，指向另一个名字，于是从第 4 步重新开始（CNAME 链见后文）；
+   - 给出 NXDOMAIN 或 NODATA，表示名字不存在或该类型不存在（负缓存见后文）。
 5. **递归解析器 → 存根**：最终答案，带 RA；若做了 DNSSEC 验证且签名链通过，还会带 **AD（Authenticated Data）** 位。
 
 注意第 2、3 步：递归解析器每次都把**同一个完整查询名**发给上级，这正是查询名最小化（QNAME minimisation）要改掉的行为。它只减少发给上级的标签数，不加密报文；相关 RFC 的演进在第四篇第 17 章，本篇不展开。
@@ -91,6 +92,8 @@ DNS 的命名空间是一棵树，根（root）写作 `.`，往下依次是顶�
 | CNAME | 名字的规范名别名 | 形成链，链上任一环失败整条失败 |
 | PTR | 反向解析 | 日志与反查，不是本章重点 |
 | MX / TXT / SRV / SVCB / HTTPS | 邮件路由、文本、服务发现等 | 现代客户端常查，`ndots` 放大时会一并出现 |
+
+**SVCB 是什么**：SVCB 全称 **Service Binding**（服务绑定），定义在 [RFC 9460]。它是一条通用资源记录，用来在**发起连接之前**就告诉客户端「这个服务可以从哪些替代端点访问、各自带什么参数」——例如优先用 HTTP/3、端口是多少、可用的 IP hint、以及 TLS 相关配置。它还支持 `AliasMode`，能在区域顶点（apex）做别名，这是 CNAME 在 apex 上做不到的。**HTTPS 记录**是 SVCB 专用于 HTTP 的变体（[RFC 9460] 一并定义），浏览器查它来决定用不用 HTTP/2、HTTP/3、ECH。本书第 13 章的 DDR 压制要挡的 `_dns.resolver.arpa. SVCB`，正是借 SVCB 来「发现加密解析器」：客户端查一条 SVCB 就能拿到 DoT / DoH / DoQ 端点，所以本地解析器用 `always_nodata` 让它查不到。第 30 章讨论信任数据时会再回到 SVCB / HTTPS 的字段。
 | DNSKEY / RRSIG / NSEC / NSEC3 / DS | DNSSEC 的密钥、签名、否认存在与委派签名 | 完整性/来源认证，与加密传输不是一回事 |
 | OPT | 并非真实记录，是 EDNS(0) 的伪记录 | 通告 UDP 缓冲大小、携带选项（如 ECS） |
 
@@ -123,7 +126,7 @@ TTL 的本质是权威服务器与缓存解析器之间的契约：到期后就�
 
 ### EDNS(0) 与 1232
 
-原始 DNS 的 UDP 报文被限制在 512 字节，放不下带 DNSSEC 签名的应答。**EDNS(0)（[RFC 6891]）** 用一条伪记录 OPT 扩展了报文：客户端在 OPT 里通告"我能重组多大的 UDP 应答"，还可以携带各种选项（ECS 就是其中之一）。
+原始 DNS 的 UDP 报文被限制在 512 字节，放不下带 DNSSEC 签名的应答。**EDNS(0)** 全称 **Extension Mechanisms for DNS (Version 0)**（[RFC 6891]），用一条伪记录 OPT 扩展了报文：客户端在 OPT 里通告"我能重组多大的 UDP 应答"，还可以携带各种选项（ECS 就是其中之一）。
 
 通告值不是越大越好。Unbound 的 `edns-buffer-size` 当前官方默认 **1232**，来自 DNS Flag Day 2020 的推荐；把出向值调大到 1472，在 MTU 1280（IPv6 最小 MTU、部分隧道）或 PPPoE 1492 链路上会分片，分片被丢后表现是**等超时再重试 TCP**，而不是自动变小报文。同一份手册里 `max-udp-size` 也默认 1232，但它只管**入向**应答；把入向调小却指望出向不分片，是常见误判。
 
@@ -132,7 +135,7 @@ TTL 的本质是权威服务器与缓存解析器之间的契约：到期后就�
 | `edns-buffer-size` | 出向 | 向权威服务器通告的重组缓冲大小 |
 | `max-udp-size` | 入向 | 本实例返回客户端的 UDP 应答最大尺寸 |
 
-EDNS 选项里还有一类与隐私直接相关的：ECS（[RFC 7871]）把客户端网段信息带给权威服务器以换取更近的 CDN 节点，代价是泄露客户端位置信息、并把缓存键从"查询名"变成"查询名 + 网段"。Unbound 把它做成显式白名单式的能力，见第 1 章的取舍说明。
+EDNS 选项里还有一类与隐私直接相关的：ECS（[RFC 7871]）把客户端网段信息带给权威服务器以换取更近的 CDN 节点，代价是泄露客户端位置信息、并把缓存键从"查询名"变成"查询名 + 网段"。Unbound 把它做成显式白名单式的能力。
 
 ## CNAME 链与解析过程中的"重来一次"
 
@@ -229,19 +232,7 @@ CNAME 链也解释了为什么"解析全过程"不能只画一次直线：它是
 - 需要 DHCP 一体、资源极省、验证交给上游 → dnsmasq；
 - 需要自己从根开始迭代、默认验证、边界可审计、按信任域拆实例 → Unbound。
 
-三者也可以共存：dnsmasq 继续管 DHCP，把 DNS 查询转给本机 Unbound；Unbound 自己做迭代与验证。这正是第二篇"按角色配置"的思路，也是第 3 章"一台机器上跑多个实例"的动机之一。**不要用一个产品覆盖所有角色，再靠一堆开关互相覆盖语义**——这是本书在选型上的基本立场。
-
-### 别把 Kubernetes 的选型混进这张表
-
-CoreDNS 在集群里做的是**服务发现**（把 Service 名字解析成 ClusterIP、处理 search 域与 `ndots`），不是自主递归验证。用 Unbound 去替代 CoreDNS 的服务发现职责是角色错位；Unbound 在这类环境里更适合做上游、节点级缓存或出口验证器。四种 `dnsPolicy`、`ndots: 5` 的查询放大、NodeLocal DNSCache 与 CoreDNS/Unbound 的分工，属于第五篇第 20 章，本篇不展开，以免把"权威/递归"的角色表和"集群内服务发现"混成一张表。
-
-## 从横评带回本书的选型原则
-
-1. **先问角色，再问产品。** 权威、递归、转发、缓存、存根是五种职责，一个进程覆盖越多，配置面与故障半径越大。
-2. **"支持"不等于"生效"。** DNSSEC 验证要看信任锚与验证状态，加密传输要看具体哪一段链路，过滤要看作用于哪个信任域。
-3. **可观测性是安全能力。** 一个不能回答"这次 SERVFAIL 来自哪一层"的实现，再轻量也不适合作为最终信任边界。
-4. **分层缓存要分层刷。** 负缓存、过期缓存应答、CNAME 链上的中间结果，都可能让"上游已修好"与"客户端仍失败"同时成立。
-5. **加密传输与 DNSSEC 各管一段。** 前者管链路隐私，后者管数据来源与完整性；本书后续所有章节都按这个区分叙述。
+三者也可以共存：dnsmasq 继续管 DHCP，把 DNS 查询转给本机 Unbound；Unbound 自己做迭代与验证。**不要用一个产品覆盖所有角色，再靠一堆开关互相覆盖语义**。
 
 ## 本章要点
 
@@ -250,12 +241,13 @@ CoreDNS 在集群里做的是**服务发现**（把 Service 名字解析成 Clus
 - 缓存作用于 RRset，返回的是剩余 TTL；负缓存（negative caching，[RFC 2308]）会记住 NXDOMAIN/NODATA 并放大故障，过期缓存应答（serve-stale，[RFC 8767]）则是刷不到新数据时的有条件例外。
 - EDNS(0) 用 OPT 伪记录扩展 UDP 报文，`edns-buffer-size`（出向）与 `max-udp-size`（入向）默认值均为 1232，方向不可调反；CNAME 链会让一次查询重走解析，且与查询名最小化的严格模式存在兼容坑。
 - BIND 9 全能但配置面大、历史 CVE 多；dnsmasq 面向小型网络/嵌入式、DHCP+DNS 一体但验证与可观测性弱；Unbound 只做递归验证、默认安全、模块化。三者是角色取舍，不是优劣排名。
-- DNSSEC = 数据完整性/来源认证，DoT/DoH/DoQ = 传输加密/隐私，二者不能互相替代；CoreDNS 的集群内服务发现与 Unbound 的自主递归验证是不同职责，不可互换。
+- DNSSEC = 数据完整性/来源认证，DoT/DoH/DoQ = 传输加密/隐私，二者不能互相替代。
 
 ## 参考资料
 
 - RFC Editor，[RFC 1034] *Domain Names – Concepts and Facilities*：https://www.rfc-editor.org/rfc/rfc1034.txt
-- RFC Editor，[RFC 1035] *Domain Names – Implementation and Specification*：https://www.rfc-editor.org/rfc/rfc1035.txt
+- RFC Editor，[RFC 1035] *Domain Names – Implementation and Specification*（wire format 与报文头定义）：https://www.rfc-editor.org/rfc/rfc1035.txt
+- RFC Editor，[RFC 9460] *Service Binding and Parameter Specification via the DNS (SVCB and HTTPS Resource Records)*：https://www.rfc-editor.org/rfc/rfc9460
 - RFC Editor，[RFC 2308] *Negative Caching of DNS Queries (DNS NCACHE)*：https://www.rfc-editor.org/rfc/rfc2308.txt
 - RFC Editor，[RFC 6891] *Extension Mechanisms for DNS (EDNS(0))*：https://www.rfc-editor.org/rfc/rfc6891.txt
 - RFC Editor，[RFC 8767] *Serving Stale Data to Improve DNS Resiliency*：https://www.rfc-editor.org/rfc/rfc8767.txt

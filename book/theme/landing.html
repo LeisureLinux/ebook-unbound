@@ -121,10 +121,12 @@ local-zone: "_dns.resolver.arpa." always_nodata</code></pre>
     <li>第 28 章 DNS 故障域隔离 —— 一次全球性中断的复盘，把「官方确认 / 外部观测 / 公开报道 / 本书推论」分列，给出六层隔离。</li>
   </ul>
 
-  <h2>v0.7.0 新增</h2>
+  <h2>v0.7.1 新增</h2>
   <ul>
-    <li>第 37 章 <strong>HTTPDNS</strong>：为什么引入（LocalDNS 五个痛点）、如何用 Unbound 自建（递归实例 + HTTP(S) 前端 + 客户端改造三层）、大厂后端架构（管控层 / 解析层 / Anycast 边缘入口）。</li>
-    <li>PDF 构建修复：把圈码、箭头、数学符号划入 xeCJK 的 CJK 类，消除全书 400+ 处「Missing character」。</li>
+    <li>五篇扉页各配一幅科技插图，篇名独占一页；另提供 PDF 封面与微信读书专用版 ePub（两个版本并存）。</li>
+    <li>补正一手出处与概念：FreeBSD 10.0 引入 Unbound、Kaminsky 缓存投毒（VU#800113 / CVE-2008-1447）投毒机理图解、ALPN、DNS Flag Day 2020、AXFR / IXFR、PMTU、priming 信任锚、RRset、SVCB、EDNS(0)、wire format、DDR 的 IPv4/IPv6 适用性、Firefox canary 域。</li>
+    <li>第 6 章扩写 NSD 配置详解（兄弟项目定位、`nsd.conf` 逐项、与 `auth-zone` 对接）。</li>
+    <li>删去重复的示例声明与自我指涉的边界说明；示例地址统一为 RFC 5737 文档段。</li>
   </ul>
 
   <h2>许可</h2>

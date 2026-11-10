@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1200" viewBox="0 0 900 1200">
+<defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="0.6" y2="1">
+    <stop offset="0%" stop-color="#0d0d27"/><stop offset="60%" stop-color="#16173f"/>
+    <stop offset="100%" stop-color="#0d0d27"/></linearGradient>
+  <linearGradient id="facet" x1="0" y1="0" x2="1" y2="0">
+    <stop offset="0%" stop-color="#0d0d27"/><stop offset="50%" stop-color="#2d2e83"/>
+    <stop offset="100%" stop-color="#0d0d27"/></linearGradient>
+  <radialGradient id="glow"><stop offset="0%" stop-color="#1fc2d7" stop-opacity="0.18"/>
+    <stop offset="100%" stop-color="#1fc2d7" stop-opacity="0"/></radialGradient>
+</defs>
+<rect width="900" height="1200" fill="url(#bg)"/>
+<circle cx="450" cy="430" r="330" fill="url(#glow)"/>
+<g font-family="DejaVu Sans, Noto Sans CJK SC, sans-serif">
+  <text x="60" y="90" fill="#1fc2d7" font-size="22" letter-spacing="6">DNS / UNBOUND</text>
+  <line x1="60" y1="108" x2="840" y2="108" stroke="#1fc2d7" stroke-width="1.5" opacity="0.45"/>
+</g>
+<g fill="none" stroke="#1fc2d7" stroke-width="2.5" opacity="0.85"><line x1="450" y1="218" x2="300" y2="302"/><line x1="450" y1="218" x2="600" y2="302"/><line x1="300" y1="338" x2="220" y2="422"/><line x1="300" y1="338" x2="380" y2="422"/><line x1="600" y1="338" x2="540" y2="422"/><line x1="600" y1="338" x2="700" y2="422"/></g><circle cx="450" cy="200" r="20" fill="#f26521" opacity="0.9"/><circle cx="450" cy="200" r="30" fill="none" stroke="#f26521" stroke-width="1.5" opacity="0.5"/><circle cx="300" cy="320" r="14" fill="#1fc2d7" opacity="0.9"/><circle cx="600" cy="320" r="14" fill="#1fc2d7" opacity="0.9"/><circle cx="220" cy="440" r="14" fill="#1fc2d7" opacity="0.9"/><circle cx="380" cy="440" r="14" fill="#1fc2d7" opacity="0.9"/><circle cx="540" cy="440" r="14" fill="#1fc2d7" opacity="0.9"/><circle cx="700" cy="440" r="14" fill="#1fc2d7" opacity="0.9"/><g font-family="DejaVu Sans, Noto Sans CJK SC, sans-serif" font-size="19" fill="#e2e8f0" text-anchor="middle"><rect x="52" y="610" width="176" height="66" rx="8" fill="#2d2e83" opacity="0.55"/><text x="140" y="650">stub</text><path d="M230 643 L255 643" stroke="#1fc2d7" stroke-width="2" fill="none"/><path d="M252 639 L257 643 L252 647" stroke="#1fc2d7" stroke-width="2" fill="none"/><rect x="257" y="610" width="176" height="66" rx="8" fill="#2d2e83" opacity="0.55"/><text x="345" y="650">cache</text><path d="M435 643 L460 643" stroke="#1fc2d7" stroke-width="2" fill="none"/><path d="M457 639 L462 643 L457 647" stroke="#1fc2d7" stroke-width="2" fill="none"/><rect x="462" y="610" width="176" height="66" rx="8" fill="#2d2e83" opacity="0.55"/><text x="550" y="650">forward</text><path d="M640 643 L665 643" stroke="#1fc2d7" stroke-width="2" fill="none"/><path d="M662 639 L667 643 L662 647" stroke="#1fc2d7" stroke-width="2" fill="none"/><rect x="667" y="610" width="176" height="66" rx="8" fill="#2d2e83" opacity="0.55"/><text x="755" y="650">recursive</text></g><path d="M450 780 L580 855 L580 1005 L450 1080 L320 1005 L320 855 Z" fill="url(#facet)" opacity="0.5"/><path d="M320 855 L450 930 L580 855" fill="none" stroke="#1fc2d7" stroke-width="2" opacity="0.6"/><circle cx="450" cy="930" r="9" fill="#f26521"/>
+<line x1="330" y1="1100" x2="570" y2="1100" stroke="url(#facet)" stroke-width="2" opacity="0.6"/>
+</svg>

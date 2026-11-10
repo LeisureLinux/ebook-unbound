@@ -70,8 +70,6 @@ IPv6 部署（RA、RDNSS、ULA、前缀轮换与临时地址寿命）、Kubernet
 
 ## 许可 {.unnumbered}
 
-正文以 **CC BY-SA 4.0** 发布。可以自由复制、修改、再发布，包括商业用途，前提是署名并以相同许可共享。仓库里的构建脚本沿用 MIT 模板。
+正文以 **CC BY-SA 4.0** 发布，构建脚本沿用 MIT 模板；完整许可与第三方材料声明见「版权信息」页。
 
-构建产物（PDF / ePub / 独立 HTML）由 GitHub Actions 从 Markdown 自动构建；`scripts/unbound-audit.sh` 可检查一份 `unbound.conf` 是否违反本书第三篇的加固基线。
-
-引用第三方材料时，本书只使用其**事实与结论**并注明出处，不复制受版权保护的正文。官方 Unbound 文档为 CC BY 3.0，NIST 出版物属美国政府公有领域作品 —— 它们各自保留自己的许可，不因被本书引用而改变。
+构建产物（PDF / ePub / 独立 HTML）由 GitHub Actions 从 Markdown 自动构建；`scripts/unbound-audit.sh` 可检查一份 `unbound.conf` 是否违反第三篇的加固基线。

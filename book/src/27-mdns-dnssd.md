@@ -2,9 +2,9 @@
 
 一台机器在同一个网卡上其实同时开着两套名字系统：一套走 UDP/TCP 53，由递归解析器与权威服务器分工完成；另一套走 UDP 5353，只在同一段链路里喊话。它们共用 DNS 的报文格式，却不是同一条解析路径。第 9 章讲最小暴露面时，隐含前提之一是「名字查询都会经过 Unbound」；这一章要把这个前提拆开：**`.local` 那类名字根本不会到 Unbound 这里来**。
 
-第四篇已经把 RFC 条文逻辑梳理过，本章不做条文四段式复述，只讲部署边界：谁在哪个通道里应答、跨链路时该换哪条通道、以及企业网络里最常见的三种「时通时不通」。
+这里只讲部署边界：谁在哪个通道里应答、跨链路时该换哪条通道、以及企业网络里最常见的三种「时通时不通」。
 
-以下地址全部是教学用示例地址，取自 RFC 5737 文档地址段与 `2001:db8::/32`；示例域名只用 `example.net`、`example.org`、`home.arpa.`，不对应任何真实环境。拿不准的规定一律写「见官方资料」或「按名称在 RFC Editor 检索」，不补编号。
+
 
 ## 两条互不相交的解析通道
 
@@ -96,11 +96,11 @@ resolvectl status | grep -iE 'MulticastDNS|LLMNR'
 
 DNS-SD [RFC 6763] 定义的是「怎么用 DNS 记录描述一个服务」，不是「怎么发多播包」。三件套分工固定：
 
-| 记录 | 回答的问题 | 查询形态（教学用示例域） |
+| 记录 | 回答的问题 | 查询形态 |
 |---|---|---|
 | PTR | 这类服务有哪些实例？ | `_demo._tcp.example.org. PTR` → `Demo Service._demo._tcp.example.org.` |
 | SRV | 这个实例跑在哪台主机、哪个端口？ | `Demo Service._demo._tcp.example.org. SRV` → `edge-01.example.org.` + 端口 |
-| TXT | 实例有哪些附加参数？ | 同上名的 TXT，键=值文本，例如 `note=教学用示例` |
+| TXT | 实例有哪些附加参数？ | 同上名的 TXT，键=值文本，例如 `note=demo` |
 
 之后才用 A / AAAA 把 `edge-01.example.org.` 解析成地址。注意这套记录**完全可以用普通的单播 DNS 区承载**：把 `_demo._tcp.example.org.` 的 PTR、SRV、TXT 写进权威区，客户端用常规 `dig` 就能完成服务发现，全程不碰 5353。这一点是理解后面三种跨链路方案的前提。
 
@@ -203,7 +203,7 @@ avahi-browse -art | grep -i '_demo._tcp'
   <service>
     <type>_demo._tcp</type>
     <port>12345</port>
-    <txt-record>note=教学用示例</txt-record>
+    <txt-record>note=demo</txt-record>
     <txt-record>site=example.org</txt-record>
   </service>
 </service-group>

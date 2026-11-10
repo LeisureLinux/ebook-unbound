@@ -8,7 +8,7 @@ mkdir -p "$OUT"
 
 # 版本号：本地构建以 metadata.yml 的 ibooks.version 为准；
 # CI 发版时会用 ${GITHUB_REF_NAME}（即 tag）覆盖，见 build.yml。
-VERSION="v$(python3 -c "import yaml;print(yaml.safe_load(open('book/metadata.yml'))['ibooks']['version'])" 2>/dev/null || echo 0.7.0)"
+VERSION="v$(python3 -c "import yaml;print(yaml.safe_load(open('book/metadata.yml'))['ibooks']['version'])" 2>/dev/null || echo 0.7.1)"
 echo "  版本: $VERSION"
 
 # 正文：前言 + 37 章 + 附录 A/B + 版本信息

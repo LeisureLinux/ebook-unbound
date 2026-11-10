@@ -2,14 +2,14 @@
 
 `interface: 0.0.0.0` 配一行 `access-control: 0.0.0.0/0 allow`，能让全网立刻问通，也能让这台机器几小时内变成别人的反射放大器。前者是「能用」，后者是「被用」。本章处理两者之间那道边界：谁可以问、从哪个地址问、能问出多大的应答、问完留下多少痕迹。
 
-实验环境是一台家庭网关 + 一台境外云主机，以下为教学用示例地址：IPv4 取 `192.0.2.0/24`、`198.51.100.0/24`、`203.0.113.0/24`（[RFC 5737]），IPv6 取 `2001:db8::/32`，域名用 `example.net` / `example.org`，内网写通用 `192.168.68.0/24` 与 ULA `fd00::/64`，主机名 `gw-01` / `edge-01`，凭据一律 `<TOKEN>`。本章只做暴露面：DNSSEC 验证在第 10 章，加密传输（DoT / DoH）在第 11、12 章，QMIN 与 DDR 压制在第 13 章，nftables 的 `:53` 劫持与按 uid 豁免在第 14 章，都不在这里展开。
+DNSSEC 验证在第 10 章，加密传输（DoT / DoH）在第 11、12 章，QMIN 与 DDR 压制在第 13 章，nftables 的 `:53` 劫持与按 uid 豁免在第 14 章。
 
 ## 监听地址逐条列出，不要 `0.0.0.0`
 
 `interface` 决定在哪些本地地址上收包。`0.0.0.0` 与 `::` 的含义是「本机所有地址，包括以后新加的地址」：今天多一个网卡、明天多一条隧道，解析器就自动多一张嘴。
 
 ```yaml
-# /etc/unbound/unbound.conf.d/10-exposure.conf —— 教学用示例地址
+# /etc/unbound/unbound.conf.d/10-exposure.conf
 server:
   interface: 127.0.0.1
   interface: ::1
@@ -22,7 +22,7 @@ server:
   do-tcp: yes
 ```
 
-**为什么这么设**：`interface` 可重复给多条，官方手册说明「一条都不给时默认只监听 localhost」，显式列出是为了让清单可审计。回环留给本机诊断与 `unbound-control`，另两个地址是面向客户端的网卡地址，不写通配。`do-tcp: yes` 必须保留：UDP 是常态，TCP 是大应答与重试的退路，为「少开一个面」关掉 TCP 只会把故障推到超时。`@port` 后缀用于同机多实例（第 7 章），本章不涉及。
+**为什么这么设**：`interface` 可重复给多条，官方手册说明「一条都不给时默认只监听 localhost」。回环留给本机诊断与 `unbound-control`，另两个地址是面向客户端的网卡地址，不写通配。`do-tcp: yes` 必须保留：UDP 是常态，TCP 是大应答与重试的退路，为「少开一个面」关掉 TCP 只会把故障推到超时。`@port` 后缀用于同机多实例（第 7 章）。
 
 **怎么验证**：`ss -lunp 'sport = :53' ; ss -lntp 'sport = :53'` —— 只应看到上述四个地址，不应出现 `0.0.0.0:53` 或 `[::]:53`。
 
@@ -33,7 +33,7 @@ server:
 `interface` 管「收不收这个包」，`access-control` 管「收到之后答不答」，两者不是一回事。
 
 ```yaml
-# /etc/unbound/unbound.conf.d/20-access.conf —— 教学用示例地址
+# /etc/unbound/unbound.conf.d/20-access.conf
 server:
   access-control: 127.0.0.0/8 allow
   access-control: ::1/128 allow
@@ -110,7 +110,7 @@ server:
 DNS rebinding 让浏览器先解析到攻击者控制的公网地址，再把同一名字的应答改成你的内网地址；浏览器同源策略按域名判断，页面脚本就成了进入内网的代理。
 
 ```yaml
-# /etc/unbound/unbound.conf.d/40-private.conf —— 教学用示例网段
+# /etc/unbound/unbound.conf.d/40-private.conf
 server:
   private-address: 10.0.0.0/8
   private-address: 172.16.0.0/12
@@ -126,7 +126,7 @@ server:
 
 **怎么验证**：`unbound-control get_option private-address ; unbound-control list_local_zones | head` —— 确认运行中的实例确实加载了这些网段，而不是只写在文件里。
 
-**失败模式 / 回滚点**：最典型的误判是「内网服务突然解析不到地址」，因为自己的权威应答也返回 `192.168.68.x`，被一并剔除。回滚：给该域名加 `private-domain`，或逐条注释网段后 reload；不要整段关掉。
+**失败模式 / 回滚点**：最典型的误判是「内网服务突然解析不到地址」，因为自己的权威应答也返回 `192.0.2.x`，被一并剔除。回滚：给该域名加 `private-domain`，或逐条注释网段后 reload；不要整段关掉。
 
 ## `local-zone` 与 [RFC 6761] 特殊用途域
 
@@ -141,7 +141,7 @@ server:
   local-zone: "onion." always_nxdomain
 ```
 
-**为什么这么设**：[RFC 6761] 把 `test.`、`invalid.`、`localhost.`、`example.` 列为特殊用途域名，本就不该去公网查。官方手册列出的默认区包括 `localhost.`、回环反向区、`home.arpa.`、`resolver.arpa.`、`service.arpa.`、`onion.`、`test.`、`invalid.` 及 AS112 反向区；`onion.` 依据 [RFC 7686]，`home.arpa.` 依据 [RFC 8375]，具体清单以所用版本的官方手册为准。这里用 `always_nxdomain` 覆盖默认 `static`：官方定义是「像 static，但忽略 local data 并返回 NXDOMAIN」，好处是日后有人往该区塞 `local-data` 也绝不出网，代价是丢掉默认 SOA / NS 内容，依赖它的客户端应改回 `static`。要连应答都不给就用 `always_deny`。刻意**不写** `example.net.` / `example.org.`：本书验收命令要用这两个名字做真实解析，写进去等于挡住自己的测试；`home.arpa.` 与 `resolver.arpa.` 留给默认区，后者与 DDR 自动发现相关，压制方法在第 13 章，本章不重复。
+**为什么这么设**：[RFC 6761] 把 `test.`、`invalid.`、`localhost.`、`example.` 列为特殊用途域名，本就不该去公网查。官方手册列出的默认区包括 `localhost.`、回环反向区、`home.arpa.`、`resolver.arpa.`、`service.arpa.`、`onion.`、`test.`、`invalid.` 及 AS112 反向区；`onion.` 依据 [RFC 7686]，`home.arpa.` 依据 [RFC 8375]，具体清单以所用版本的官方手册为准。这里用 `always_nxdomain` 覆盖默认 `static`：官方定义是「像 static，但忽略 local data 并返回 NXDOMAIN」，好处是日后有人往该区塞 `local-data` 也绝不出网，代价是丢掉默认 SOA / NS 内容，依赖它的客户端应改回 `static`。要连应答都不给就用 `always_deny`。刻意**不写** `example.net.` / `example.org.`：验收命令要用这两个名字做真实解析，写进去等于挡住自己的测试；`home.arpa.` 与 `resolver.arpa.` 留给默认区，后者的 DDR 自动发现压制方法在第 13 章。
 
 **怎么验证**：`dig @127.0.0.1 whatever.test. A ; dig @127.0.0.1 whatever.invalid. A ; dig @127.0.0.1 example.org A +short` —— 前两条 `NXDOMAIN` 且不产生出向递归，第三条仍有正常答案，证明没有误伤。
 
@@ -202,7 +202,7 @@ server:
   statistics-interval: 0
 ```
 
-**为什么这么设**：手册说明 `log-queries` / `log-replies` 每查询打一行、会**显著降低**服务速度，默认 no；`verbosity: 1` 只给运行级信息，2 以上开始出现逐查询细节；`statistics-interval: 0` 关闭周期统计打印。唯一保留的例外是 `log-servfail: yes`：手册说它单独打印 SERVFAIL 原因，量小、级别是 error，排障价值远高于画像风险。`logfile: ""` 与 `use-syslog: yes` 显式化，避免日志落两份（手册说明两者互相覆盖）。全量结构化日志用 dnstap 时是另一套配置（第 7、13 章），本书统一 30 天保留期并配套到期删除。
+**为什么这么设**：手册说明 `log-queries` / `log-replies` 每查询打一行、会**显著降低**服务速度，默认 no；`verbosity: 1` 只给运行级信息，2 以上开始出现逐查询细节；`statistics-interval: 0` 关闭周期统计打印。唯一保留的例外是 `log-servfail: yes`：手册说它单独打印 SERVFAIL 原因，量小、级别是 error，排障价值远高于画像风险。`logfile: ""` 与 `use-syslog: yes` 显式化，避免日志落两份（手册说明两者互相覆盖）。全量结构化日志用 dnstap 时是另一套配置（第 7、13 章），保留期与到期删除要一并配好。
 
 **怎么验证**：`unbound-control get_option log-queries ; journalctl -u unbound --since '5 min ago' | grep -c 'query:' || true` —— 前者为 `no`、后者为 0；随后制造一次 SERVFAIL，应能看到原因行。
 
@@ -228,7 +228,7 @@ MaxRetentionSec=30day
 
 ```conf
 #!/usr/sbin/nft -f
-# /etc/nftables.conf —— 教学用示例地址，勿直接用于生产
+# /etc/nftables.conf
 flush ruleset
 table inet filter {
   chain input {
@@ -251,7 +251,7 @@ table inet filter {
 }
 ```
 
-**为什么这么设**：`policy drop` 默认拒绝，配 `ct state established,related accept` 让应答回来，`ct state new` 限定只有新建连接需显式放行。53 同时开 UDP 与 TCP，对应 9.1 的 `do-udp` / `do-tcp`。IPv6 ND 与 `packet-too-big` 必须留：全丢掉表现为「v4 正常、v6 时通时断」，常被误判成上游问题——这是本书反复强调「排查网络故障先看 nftables 规则」的原因之一。出向暂用 `accept` 以免把本章变成出口策略章；收紧出向时记得本机解析器自己的递归查询也要留路，若网关还有 `:53` 劫持规则，本机 Unbound 的出向 53 必须按 uid 豁免（第 14 章）。
+**为什么这么设**：`policy drop` 默认拒绝，配 `ct state established,related accept` 让应答回来，`ct state new` 限定只有新建连接需显式放行。53 同时开 UDP 与 TCP，对应前面的 `do-udp` / `do-tcp`。IPv6 ND 与 `packet-too-big` 必须留：全丢掉表现为「v4 正常、v6 时通时断」，常被误判成上游问题。出向暂用 `accept`；收紧出向时记得本机解析器自己的递归查询也要留路，若网关还有 `:53` 劫持规则，本机 Unbound 的出向 53 必须按 uid 豁免（第 14 章）。
 
 **怎么验证**：`nft -c -f /etc/nftables.conf && nft list ruleset | head -30` —— `-c` 只查语法、不加载；加载后从 `203.0.113.9` 测 `dig @192.0.2.1 example.net A +time=2 +tries=1` 应超时，从 `192.0.2.0/24` 内应有答案。
 
@@ -263,7 +263,7 @@ table inet filter {
 
 ```yaml
 # /etc/unbound/unbound.conf.d/90-minimal-exposure.conf
-# 完整基线 —— 教学用示例地址，上线前按自己的网段替换
+# 完整基线
 server:
   # 9.1 监听面 / 9.2 默认拒绝 + 最长前缀匹配
   interface: 127.0.0.1
@@ -328,7 +328,7 @@ server:
   statistics-interval: 0
 ```
 
-**为什么这么设**：所有条目都在前面各节给过来历。两个刻意的缺席要说明：没有 `auto-trust-anchor-file` / `module-config`——DNSSEC 验证是第 10 章，本章不半开半关；没有 `tls-service-key` / `tls-service-pem`、也没有 853 或 443 监听——加密传输是第 11、12 章。提前塞进来会让文件看起来更「全」，却引入本章给不出验证命令的状态。
+**为什么这么设**：两个刻意的缺席：没有 `auto-trust-anchor-file` / `module-config`——DNSSEC 验证在第 10 章；没有 `tls-service-key` / `tls-service-pem`、也没有 853 或 443 监听——加密传输是第 11、12 章。提前塞进来会引入给不出验证命令的状态。
 
 **怎么验证**：`unbound-checkconf /etc/unbound/unbound.conf.d/90-minimal-exposure.conf && echo CONFIG_OK`
 
@@ -367,7 +367,7 @@ unbound-control stats_noreset | grep -E 'total.num.queries|num.cachehits|num.que
 
 ## 出向收敛：把 DNS 隧道数据外泄堵在边界上
 
-DNS 隧道是加固中最常见的通病之一：防火墙放行了 UDP/53，却没管**谁能发、发给谁**。攻击者在内网主机上把凭据或配置编码进子域标签（`base64chunk.exfil.example.net`），查询一路经过内部解析器到达其控制的权威服务器；应答用 TXT / NULL / CNAME 回传，就形成一条双向 C2 与外泄信道。吞吐很低也够用，而 DGA 轮换域名让「封几个坏域名」必然失效。第 29 章会展开检测与排查，这里只给加固动作。
+DNS 隧道是加固中最常见的通病之一：防火墙放行了 UDP/53，却没管**谁能发、发给谁**。攻击者在内网主机上把凭据或配置编码进子域标签（`base64chunk.exfil.example.net`），查询一路经过内部解析器到达其控制的权威服务器；应答用 TXT / NULL / CNAME 回传，就形成一条双向 C2 与外泄信道。吞吐很低也够用，而 DGA 轮换域名让「封几个坏域名」必然失效。检测与排查见第 29 章。
 
 ```bash
 # 教学骨架：客户端只能问内部解析器，内部解析器只能问受控上游

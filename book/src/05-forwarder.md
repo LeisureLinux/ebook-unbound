@@ -2,17 +2,15 @@
 
 缓存解析器（第 4 章）自己走完整递归；转发器（forwarder）不递归，它把查询整个交给另一台递归解析器，自己只做缓存、过滤与访问控制。这个角色在家宽网关、Kubernetes 节点级缓存、以及"出口只有一条加密通道"的场景里非常常见，也是最容易配错的一种角色。
 
-本章的实验环境仍是一台家庭网关 + 一台境外云主机，所有地址都是教学用示例地址：上游用 `192.0.2.53`、`198.51.100.53`、`203.0.113.53`（[RFC 5737]），IPv6 用 `2001:db8::53`（[RFC 3849]），本机监听用回环与 `192.168.68.0/24` 这类通用内网写法，ULA 用 `fd00::/64`。主机名统一写成 `gw-01`、`edge-01`、`cloud-01`、`dns.example.org`、`resolver.example.net`，不声明是真实环境。
-
 ## 最小转发器：唯一上游
 
 ```yaml
-# /etc/unbound/unbound.conf.d/10-forward.conf —— 教学用示例地址
+# /etc/unbound/unbound.conf.d/10-forward.conf
 server:
   interface: 127.0.0.1@5357
-  interface: 192.168.68.1@5357
+  interface: 192.0.2.1@5357
   access-control: 127.0.0.0/8 allow
-  access-control: 192.168.68.0/24 allow
+  access-control: 192.0.2.0/24 allow
   do-ip4: yes
   do-ip6: no
   do-udp: yes
@@ -81,7 +79,7 @@ tcpdump -ni any 'udp port 53 and host 198.51.100.53' -c 5
 ## TCP 承载的上游：forward-tcp-upstream
 
 ```yaml
-# /etc/unbound/unbound.conf.d/20-forward-tcp.conf —— 教学用示例地址
+# /etc/unbound/unbound.conf.d/20-forward-tcp.conf
 forward-zone:
   name: "."
   forward-addr: 192.0.2.53
@@ -102,14 +100,14 @@ tcpdump -ni any 'tcp port 53 and host 192.0.2.53' -c 5
 
 应只看到 TCP/53 出向报文，没有 UDP/53 到该上游。
 
-**失败模式 / 回滚点**：上游若只监听 UDP（少见但存在），会全量 SERVFAIL。回滚：改为 `no` 或删掉该行并 reload（`forward-zone` 选项可 reload 生效，不必改 `interface`）。若 `unbound-control` 未开启，改完记得 `systemctl restart` 才保险；reload 与 restart 的差异见第 7 章。
+**失败模式 / 回滚点**：上游若只监听 UDP（少见但存在），会全量 SERVFAIL。回滚：改为 `no` 或删掉该行并 reload（`forward-zone` 选项可 reload 生效，不必改 `interface`）。若 `unbound-control` 未开启，改完记得 `systemctl restart` 才保险。
 
 ## 加密上游：forward-tls-upstream 与 tls-cert-bundle
 
 `forward-tcp-upstream` 解决"用 TCP 承载"，但不加密。**加密传输（DoT / DoH / DoQ）与 DNSSEC 是两件事**：前者提供传输加密 / 隐私，后者提供数据完整性 / 来源认证，任何配置都不得用一个替代另一个。本节的 DoT 只是上游方向的客户端用法；服务端侧 DoT（853 端口监听）在第三篇第 11 章，DoH 在第 12 章，协议族对比在第四篇第 17 章。
 
 ```yaml
-# /etc/unbound/unbound.conf.d/30-forward-dot.conf —— 教学用示例地址
+# /etc/unbound/unbound.conf.d/30-forward-dot.conf
 server:
   tls-cert-bundle: /etc/ssl/certs/ca-certificates.crt
   edns-buffer-size: 1232
@@ -144,7 +142,7 @@ openssl s_client -connect 192.0.2.53:853 -servername dns.example.org -CAfile /et
 ## do-not-query-localhost: no 的适用条件
 
 ```yaml
-# /etc/unbound/unbound.conf.d/40-local-upstream.conf —— 教学用示例地址
+# /etc/unbound/unbound.conf.d/40-local-upstream.conf
 server:
   do-not-query-localhost: no
 
@@ -164,7 +162,7 @@ forward-zone:
 2. 两个实例的端口、pidfile、控制接口、缓存目录互不重叠（第 7 章）。
 3. 上游实例不会再把查询转回下游实例；`forward-first: no` 能保证失败时不逃逸，但不能替你检查拓扑成环。
 
-`do-not-query-localhost: no` 放开的是回环，不是安全边界。若 `forward-addr` 写的是 `192.168.68.1` 这类本机非回环地址，改这个选项毫无作用，要用 `do-not-query-address` 相关配置去排查（那条不在本章展开）。
+`do-not-query-localhost: no` 放开的是回环，不是安全边界。若 `forward-addr` 写的是 `192.0.2.1` 这类本机非回环地址，改这个选项毫无作用，要用 `do-not-query-address` 相关配置去排查。
 
 **怎么验证**：
 
@@ -214,7 +212,7 @@ unbound-checkconf /etc/unbound/unbound.conf && grep -rn 'auto-trust-anchor-file'
 
 ```bash
 #!/bin/sh
-# /usr/local/sbin/unbound-upstream-sync.sh —— 教学用示例地址
+# /usr/local/sbin/unbound-upstream-sync.sh
 # 由 cron / systemd timer 每分钟调用；配置没变就不 install、不 restart
 set -eu
 

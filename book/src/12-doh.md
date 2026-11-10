@@ -2,7 +2,7 @@
 
 DoH（DNS-over-HTTPS，[RFC 8484]）把 DNS 报文塞进 HTTP 请求体，再经 TLS 送出，因此能跑在标准 443 端口上，与 Web 流量同形。这一形态带来两个必须一开始就讲清的事实：**Unbound 本身不是给公网做 DoH 前端的合适组件**，以及 **DoH 端点仍属第三方，日志留存方是谁要写进设计文档**。本章按「前端 → 后端 → 客户端 → 绕过面」的顺序落地配置。
 
-以下地址均为教学用示例地址（`192.0.2.0/24`、`198.51.100.0/24`、`2001:db8::/32`），域名用 `dns.example.org`、`gw.example.net`，凭据一律写作 `<TOKEN>` 或 `example-token-0000`，不涉及任何真实公网地址、域名或密钥。
+
 
 ## 为什么 Unbound 不是 DoH 前端
 
@@ -61,7 +61,7 @@ setLocal("127.0.0.1:5300")                    -- 控制台/明文 DNS 入口（�
 newServer({address="127.0.0.1:5353", pool="default", name="unbound-recursive"})
 newServer({address="198.51.100.53:53", pool="internal", name="lab-forwarder"})
 
--- DoH 前端：公网 443，路径带 token 前缀（见 12.4 节）
+-- DoH 前端：公网 443，路径带 token 前缀（媒体类型与路径校验见后文）
 addDOHLocal("192.0.2.10:443",
   "/etc/dnsdist/tls/fullchain.pem",
   "/etc/dnsdist/tls/privkey.pem",
@@ -94,7 +94,7 @@ dnsdist -c 127.0.0.1:5199 -k '<TOKEN>' -e 'showServers()'
 
 `showDOHResponseCodes()` 若出现大量 404，先查路径与 `addDOHLocal` 的 `urls` 是否完全一致；出现 415 则是 `content-type` 没设对。`query.bin` 可以用 `kdig +https` 生成，或先用一个已知的 DNS 线格式报文。
 
-**失败模式 / 回滚点**：dnsdist 2.x 起用 nghttp2 实现入向 DoH，**只支持 HTTP/2，不支持 HTTP/1.1**（官方手册明确写了）。如果前面再加一层 nginx 且回源用 HTTP/1.1，会直接握手失败；解决办法见 12.3 节。另一个坑是证书/私钥权限：dnsdist 通常以非 root 运行，私钥必须对它可读，否则 `addDOHLocal` 启动时报错。回滚：把 `addDOHLocal` 注掉、保留 `addLocal` 明文入口，先恢复 DNS 可用性，再逐项加回。
+**失败模式 / 回滚点**：dnsdist 2.x 起用 nghttp2 实现入向 DoH，**只支持 HTTP/2，不支持 HTTP/1.1**（官方手册明确写了）。如果前面再加一层 nginx 且回源用 HTTP/1.1，会直接握手失败；回源写法见后文。另一个坑是证书/私钥权限：dnsdist 通常以非 root 运行，私钥必须对它可读，否则 `addDOHLocal` 启动时报错。回滚：把 `addDOHLocal` 注掉、保留 `addLocal` 明文入口，先恢复 DNS 可用性，再逐项加回。
 
 ### 生成一次可复用的 DoH 请求体
 
@@ -329,7 +329,7 @@ dig @127.0.0.1 -p 5353 _dns.resolver.arpa. SVCB +short
 
 ### Chrome：靠系统解析器匹配已知提供商列表
 
-Chrome 的内置 DoH 升级逻辑是：当系统解析器属于已知的 DoH 提供商列表时，才把该解析器升级为对应的 DoH 端点。指向私有解析器（例如 `192.168.68.1`、`fd00::1` 或 `192.0.2.1`）时，名字不在列表里，Chrome **不会自行升级**，会继续用系统解析器。因此不需要按域名封，也不需要额外 canary 域。
+Chrome 的内置 DoH 升级逻辑是：当系统解析器属于已知的 DoH 提供商列表时，才把该解析器升级为对应的 DoH 端点。指向私有解析器（例如 `192.0.2.1`、`fd00::1` 或 `192.0.2.1`）时，名字不在列表里，Chrome **不会自行升级**，会继续用系统解析器。因此不需要按域名封，也不需要额外 canary 域。
 
 ```bash
 # 验证「系统解析器是谁」，而不是去封 443

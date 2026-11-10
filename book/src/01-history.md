@@ -1,5 +1,8 @@
 # 第一篇　认识 DNS 与 Unbound {.unnumbered}
 
+![](images/part1.png){width=70%}
+
+
 # Unbound 的历史演进
 
 Unbound 不是某家厂商为了补齐产品线而做的 DNS 组件，它是带着一个明确问题出生的：当互联网上绝大多数递归解析器都跑着同一套代码时，一个解析器自身的漏洞就不再是"某台机器的故障"，而是全局性的单点风险。理解这条设计动机，比记住版本号更重要——它解释了为什么一个只做递归验证的实现会刻意把边界收得那么窄。
@@ -10,7 +13,7 @@ Unbound 不是某家厂商为了补齐产品线而做的 DNS 组件，它是带�
 
 **BIND = Berkeley Internet Name Domain**。1980 年代初诞生于加州大学伯克利分校的计算机系统研究组（CSRG），由 DARPA 资助，Douglas Terry、Mark Painter、David Riggle、Songnian Zhou 四名研究生完成，随 4.3BSD 发行。它的主进程叫 `named`（name daemon），`dig`、`nsupdate` 与 resolver 库都出自同一套软件包。ISC 的《The History of BIND》与 BIND 9 官方文档都这么写。
 
-**Unbound 的名字与 BIND 没有词源关系**。2008 年 5 月 20 日的官方发布新闻稿给出的定位是「a secure, high-performance **alternative to** BIND」—— 是**作为 BIND 的替代方案**，不是从 BIND 这个词拆出来的。官方历史页只说它是一个「开发独立开源 DNS 软件与文档」的项目，**没有公布过命名故事**。因此「unbound 取『不受束缚』之意、不被权威与递归双重职责绑住」是常见解读，本书按**推断**标注，不作为官方词源引用。
+**Unbound 的名字与 BIND 没有词源关系**。2008 年 5 月 20 日的官方发布新闻稿给出的定位是「a secure, high-performance **alternative to** BIND」—— 是**作为 BIND 的替代方案**，不是从 BIND 这个词拆出来的。官方历史页只说它是一个「开发独立开源 DNS 软件与文档」的项目，**没有公布过命名故事**。因此「unbound 取『不受束缚』之意、不被权威与递归双重职责绑住」是常见解读，这里按**推断**标注，不作为官方词源引用。
 
 后来 Unbound 在 FreeBSD、OpenBSD 里取代 BIND 成为 base system 默认解析器，那是**结果**，也不是命名原因。把这两件事分开，才看得清第 1 章后面那条主线：Unbound 的取舍不是「比 BIND 多几个功能」，而是**主动把职责收窄**。
 
@@ -50,11 +53,43 @@ Unbound 项目自身的早期需求文档把这一点写成了明确的工程目
 
 第三条才是 Unbound 需求文档里 `code diversity` 与 `smallest as possible component` 的真实指向。代码多样性不是为了证明谁更安全，而是为了让一次实现层面的漏洞不至于同时打穿所有解析器；小而专注的实现，则是让运维在出事时能沿着一条明确路径把因果链走完。2008 年那次事件里，Unbound 因清理器不把不信任的附加数据写入缓存、且端口熵从设计之日就取满，得以在不紧急改架构的前提下应对——这是**边界清晰带来的红利**，不是「代码少所以没 bug」。
 
-顺带说明本书的立场：BIND 至今仍是权威服务器与复杂企业场景里成熟、可靠、文档完备的选择，第 2 章会按角色做取舍对照。这里讨论的是**当需求被限定为「只做递归验证」时，全能实现的额外代码路径是否还值得承担**，而不是给产品排座次。
+BIND 至今仍是权威服务器与复杂企业场景里成熟、可靠、文档完备的选择。这里要判断的是**当需求被限定为「只做递归验证」时，全能实现的额外代码路径是否还值得承担**。
 
 ### 2008 年的外部冲击：一次全行业压力测试
 
-2008 年，Dan Kaminsky 披露了一类影响广泛的 DNS 缓存投毒漏洞（CVE-2008-1447 相关公告）。攻击者不需要猜中某个特定域名的应答，而是可以通过反复触发对同一父域下随机子名的查询，制造大量"在途查询"，从而在较短时间里撞中 16 位查询 ID 与源端口的组合，把伪造的权威应答塞进缓存。伪造数据一旦带上很长的 TTL，会把后续所有访问导向攻击者指定的地址。
+2008 年，Dan Kaminsky 披露了一类影响广泛的 DNS 缓存投毒漏洞（CVE-2008-1447；CERT/CC 编号为 VU#800113，见本章参考资料 [1][2]）。攻击者不需要猜中某个特定域名的应答，而是可以通过反复触发对同一父域下随机子名的查询，制造大量"在途查询"，从而在较短时间里撞中 16 位查询 ID 与源端口的组合，把伪造的权威应答塞进缓存。伪造数据一旦带上很长的 TTL，会把后续所有访问导向攻击者指定的地址。
+
+### 投毒是怎么实现的（CVE-2008-1447 图解）
+
+下图把一次成功的伪造应答拆成六个步骤。[1][2] 描述的要点是：出向查询的 **16 位 TXID** 与**源端口**共同构成匹配空间；当端口固定或可预测时，攻击者只需撞 65536 种 ID；而攻击者自己能制造大量「在途查询」，等于同时买了很多张彩票。
+
+```text
+① 攻击者想污染  example.org  的 NS / A 记录
+② 攻击者向目标递归器反复查询随机子名：
+      <随机1>.example.org  A?   → 递归器发往 example.org 权威（TXID=t1, sport=p）
+      <随机2>.example.org  A?   → 递归器发往 example.org 权威（TXID=t2, sport=p）
+      ...                        （同时有 N 个查询「在途」）
+③ 递归器等待权威应答；此时攻击者以 example.org 权威的身份
+   批量伪造应答，每个伪造包猜一个 TXID：
+      [伪造应答]  QNAME=<随机k>.example.org  TXID=guess
+                  ADDITIONAL:  example.org.  NS  ns.attacker.example.
+                               ns.attacker.example.  A  203.0.113.53
+④ 只要有一次 (guess, sport) 命中某个在途查询，且比真应答先到，
+   递归器就把它当作合法应答接受；其余 N-1 个随机子名只是「制造彩票」。
+⑤ 关键在 ADDITIONAL 段：夹带的 NS + glue 把整个 example.org 的
+   后续解析引到攻击者控制的地址（bailiwick 检查不严时尤其有效）。
+⑥ 伪造记录带长 TTL → 缓存里留很久；之后所有访问 example.org 的客户端
+   都被导向 203.0.113.53，且链路上每一层缓存都要清理。
+
+缓解（不是根除）：源端口随机化把空间从 2^16 扩到约 2^32，
+0x20 大小写随机化再加熵；根除要靠 DNSSEC 签名验证 [3]。
+```
+
+**① 为什么这么设**：这张图只画机理，不提供复现命令。三条对应关系要记住——「随机子名」不是目标而是**制造在途查询**的手段，「夹带 glue」才是把单次命中放大成整域劫持的原因，「长 TTL」决定故障持续时间。
+
+**② 怎么验证**：`dig +short example.org A` 看应答里有没有意料之外的 NS / A；用 dnstap 或抓包观察出向查询的源端口是否随机、同一名字是否反复出现高熵随机子标签。
+
+**③ 失败模式 / 回滚点**：若已污染，清缓存不会自动修复——权威侧改回正确记录后，链路上每个缓存实例都要刷，且要检查有没有别的区域也被同一个 glue 带走。回滚点是换成带 DNSSEC 验证的递归器，并确认 `harden-glue` 一类边界开启。
 
 把攻击面拆开看，会更清楚为什么「代码体量」是个安全指标：
 
@@ -97,7 +132,7 @@ Java 原型不是"先写个能跑的版本再说"。原型页面明确说明：J
 
 NLnet Labs 当时已有 **NSD**（一个只做权威服务器的实现）的开发经验，把"只做一件事、把它做干净"的工程习惯带到了 Unbound：C 实现延续了 BSD 许可、模块划分与"不做权威服务器"的边界，同时也复用了不少底层库与构建经验。**Wouter Wijngaards** 是这一阶段及之后长期的主要开发者。
 
-值得注意的是方向上的对称：NSD 把"权威"这一半从 BIND 式全能服务器里切出来，Unbound 把"递归 + 验证"这一半切出来。两者都不试图覆盖对方。本书第二篇第 6 章讲本地根区镜像时会再碰到这个分工，但那里是配置问题；此处只需记住，**Unbound 从来不是"半个 BIND"，而是一个边界先定好、再填功能的实现**。
+值得注意的是方向上的对称：NSD 把"权威"这一半从 BIND 式全能服务器里切出来，Unbound 把"递归 + 验证"这一半切出来。两者都不试图覆盖对方。**Unbound 从来不是"半个 BIND"，而是一个边界先定好、再填功能的实现**。
 
 ### 2008-05-20：1.0 公开发布
 
@@ -107,13 +142,15 @@ NLnet Labs 当时已有 **NSD**（一个只做权威服务器的实现）的开�
 
 ### 许可与治理：BSD 与「谁在维护」
 
-从 Java 原型到 C 实现，许可始终是 **BSD**。这件事对运维的实际影响比想象中大：
+从 Java 原型到 C 实现，许可始终是 **BSD**（BSD 3-Clause 一类宽松许可）。这件事对运维的实际影响比想象中大：
 
 - 发行版可以无阻碍地打包，嵌入式与路由器固件可以集成，也允许被其他项目以库形式链接（`libunbound`）；
 - 没有 copyleft 的传染性要求，商业设备与内部工具可以按需修改；
 - 反过来，BSD 也意味着**没有人为你的部署兜底**：安全公告、升级节奏、默认值变更都要自己跟。
 
-治理结构上，NLnet Labs 承担主要开发与文档维护，开发讨论与用户支持通过公开的邮件列表与代码仓库进行。对本书读者更实用的一条经验是：**发行版仓库里的 Unbound 版本常常明显滞后于上游**，而 `unbound -V` 与 `unbound-control status` 才是判断本机实际能力的依据。第三篇讨论某个参数是否可用时，先确认版本，再查该版本的手册，不要拿最新版文档的默认值去套旧包。
+治理结构上，NLnet Labs 承担主要开发与文档维护，开发讨论与用户支持通过公开的邮件列表与代码仓库进行。对本书读者更实用的一条经验是：**发行版仓库里的 Unbound 版本常常明显滞后于上游**，而 `unbound -V` 与 `unbound-control status` 才是判断本机实际能力的依据。判断某个参数是否可用，先确认版本，再查该版本的手册。
+
+「BSD 许可」和「BSD 操作系统默认带 Unbound」是两回事。后者是可核验的具体事件——FreeBSD **10.0-RELEASE**（2014-01-20）的发布公告在 highlights 里同时写了两句：「Unbound has been imported to the base system as the local caching DNS resolver.」与「BIND has been removed from the base system.」[4]。也就是说 FreeBSD 用 Unbound 作为**本地缓存解析器**替换了基本系统里的 BIND，但这是**该版本 FreeBSD 的选择**，不是所有 BSD 系（OpenBSD / NetBSD / DragonFly）都如此，也不是「BSD 许可导致默认使用」。OpenBSD 同期主推的是自己的 `unwind` / `resolvd` 一类组件，按各自发行说明核对。
 
 ### 一条需求，三种读法
 
@@ -156,7 +193,7 @@ NLnet Labs 当时已有 **NSD**（一个只做权威服务器的实现）的开�
 - 发行版打包版本与上游版本不是一回事，能力判断以本机 `unbound -V` 为准；
 - 默认是「当前默认」而非「历代默认」，例如 `edns-buffer-size` 的 1232 来自 DNS Flag Day 2020 推荐，早期默认值不同。
 
-这条约定也解释了为什么本章的速查表里有几行故意留白：宁可让读者去查一手来源，也不要生产一个看似精确、实际无法核验的版本号。
+速查表里几行故意留白：宁可去查一手来源，也不要一个看似精确、实际无法核验的版本号。
 
 ### DLV：根尚未签名时的过渡方案
 
@@ -174,13 +211,13 @@ DLV 之所以存在，是因为「验证」这件事有一个容易被忽略的�
 | permissive 模式 | 记录日志但放行 | 日志里有验证失败，客户端仍拿到应答 |
 | 真验证 | 坏签名 → SERVFAIL；好签名 → 应答带 AD 标志 | 坏签名域整体失败，好签名域可凭 AD 位确认 |
 
-注意第三种状态里的 AD 位：它是**解析器向客户端声明「我验证过了」**的标志，不是数据本身自带的属性。第 3 章会把 AD、CD 与 RD、RA 放在同一张报文位表里讲清楚。历史章节只需记住：DLV 与 [RFC 5011] 都是在解决「起点从哪来、怎么更新」，而不是在解决「传输路上有没有被偷看」。
+注意第三种状态里的 AD 位：它是**解析器向客户端声明「我验证过了」**的标志，不是数据本身自带的属性。历史章节只需记住：DLV 与 [RFC 5011] 都是在解决「起点从哪来、怎么更新」，而不是在解决「传输路上有没有被偷看」。
 
 ### DNSSEC 默认验证：从可选到基线
 
 早期 DNSSEC 验证常被视为"要显式打开的高级特性"。Unbound 的演进方向相反：**验证成为默认假设**，运维要操心的是"锚是否就位""验证失败要不要放行"，而不是"要不要启用验证"。与之配套的是三种可观测的状态：无信任锚时透传不验证坏签名、permissive 模式记录日志但放行、真正验证时坏签名直接返回 SERVFAIL 且好签名带 AD 标志。
 
-这个转变把安全责任从"运维记得勾选"移到了"实现默认如此"。它也是本书反复强调"验证状态必须可验证"的原因：默认开着不等于真的在验证，锚缺失或被显式降级时，解析器看起来一切正常。
+这个转变把安全责任从"运维记得勾选"移到了"实现默认如此"。默认开着不等于真的在验证，锚缺失或被显式降级时，解析器看起来一切正常。
 
 ### libunbound 与 pythonmod：把能力交给应用程序
 
@@ -198,12 +235,14 @@ DLV 之所以存在，是因为「验证」这件事有一个容易被忽略的�
 
 **DoT（DNS-over-TLS，[RFC 7858]）** 用专用端口 853 把 DNS 报文直接装在 TLS 里；**DoH（DNS-over-HTTPS，[RFC 8484]）** 在 DNS 报文与 TLS 之间加了一层 HTTP（Unbound 的下游 DoH 要求 HTTP/2，靠 ALPN 协商，以满足流水线与乱序处理的性能需要）；**DoQ（DNS-over-QUIC，[RFC 9250]）** 走 QUIC，用加密的多路复用承载 DNS。
 
+**ALPN 是什么**：ALPN 是 **Application-Layer Protocol Negotiation**（应用层协议协商），定义在 [RFC 7301]。它是 TLS 握手里的一个扩展：客户端在 ClientHello 里列出自己支持的应用协议标识（如 `h2`、`http/1.1`），服务端在 ServerHello 里挑一个，双方还没传应用数据就已约定好上层协议。DoH 依赖 HTTP/2，而 HTTP/2 在 TLS 上正是靠 ALPN 里的 `h2` 标识协商出来的——本书第 12 章 nginx 回源必须走 h2c / `grpc_pass` 才能接上 dnsdist 2.x，根子就在这里。注意 ALPN 只协商「TLS 之上跑什么协议」，与 DNSSEC、DoT 的 853 端口、DoQ 的 ALPN 标识 `doq` 都属不同层的概念，不要混为一谈。[5]
+
 时间线上有两个容易被混淆的点，值得写清：
 
 - 官方手册的 DoH 章节记载，Unbound **早在 2011 年就能处理 TLS 加密的 DNS 报文**，远早于 IETF DPRIVE 工作组启动 DoT 规范工作；而作为正式配置能力的下游 DoT/DoH 支持是后来的事。把"代码里出现过 TLS 处理"和"作为标准特性发布"混为一谈，是常见的年份错误来源。
 - 下游 DoH 在官方手册中标注为 "New in version 1.12.0"，下游 DoQ 标注为 "New in version 1.22.0"（且早期需要带 QUIC 支持的 OpenSSL 分支，1.24.0 起可用 OpenSSL 3.5.0 及以上）。任务描述里提到的"1.7 前后"可视为 DoT 相关能力趋于可用的大致时期，**确切版本以官方手册对应章节为准**。
 
-三者解决的问题是**传输加密与隐私**（链路上的观察者、客户端对解析器的身份认证），不解决"应答数据是否被伪造"——那是 DNSSEC 的职责。第三篇第 11、12 章会分别落地 DoT 与 DoH 的服务端/客户端配置，第四篇第 17 章才做 [RFC 7858] / [RFC 8484] / [RFC 9250] 的协议层对比，本篇不展开配置。
+三者解决的问题是**传输加密与隐私**（链路上的观察者、客户端对解析器的身份认证），不解决"应答数据是否被伪造"——那是 DNSSEC 的职责。DoT 与 DoH 的服务端/客户端配置在第三篇第 11、12 章，协议层对比在第四篇第 17 章。
 
 ### 三种加密传输的角色边界
 
@@ -264,11 +303,13 @@ Unbound 的 `serve-expired` 早于该 RFC 存在，最初目的是提高缓存�
 
 ### EDNS 1232：被 MTU 教育出来的一次默认值变更
 
-EDNS(0)（[RFC 6891]）允许在 UDP 报文里通告"我能重组多大的应答"。早期运维习惯把 `edns-buffer-size` 调大到 1472 甚至更高，以减少 TCP 回退。但当链路上存在 MTU 1280（IPv6 最小 MTU、部分隧道）或 PPPoE 1492 时，大报文会分片；分片一旦被丢弃，表现不是"报文变小"，而是**等超时再重试 TCP**，延迟陡增。
+**EDNS(0)** 全称 **Extension Mechanisms for DNS (Version 0)**，定义在 [RFC 6891]：它在不改动 DNS 报文头的前提下，用一条伪资源记录 **OPT** 承载扩展能力——通告「我能重组多大的 UDP 应答」、携带 ECS / DNS Cookie 等选项、以及 DO 位（DNSSEC OK）。原始 DNS 的 UDP 报文被限制在 512 字节，带 DNSSEC 签名的应答放不下，EDNS(0) 就是为此而来。
 
-Unbound 当前官方默认值为 **1232**，来源是 DNS Flag Day 2020 的推荐；`max-udp-size` 同样默认 1232，但两者方向不同：`edns-buffer-size` 是**出向**通告给对端的重组缓冲大小，`max-udp-size` 只管**入向**应答的最大 UDP 尺寸。把入向调小却期望出向不分片，是这类故障里最常见的误判。这个数字看起来只是个默认值，实际上是"协议设计向真实链路条件让步"的一个标本。
+早期运维习惯把 `edns-buffer-size` 调大到 1472 甚至更高，以减少 TCP 回退。但当链路上存在 MTU 1280（IPv6 最小 MTU、部分隧道）或 PPPoE 1492 时，大报文会分片；分片一旦被丢弃，表现不是"报文变小"，而是**等超时再重试 TCP**，延迟陡增。
 
-### 两个方向，别调反
+Unbound 当前官方默认值为 **1232**，来源是 **DNS Flag Day 2020** 的推荐 [6]；`max-udp-size` 同样默认 1232，但两者方向不同：`edns-buffer-size` 是**出向**通告给对端的重组缓冲大小，`max-udp-size` 只管**入向**应答的最大 UDP 尺寸。把入向调小却期望出向不分片，是这类故障里最常见的误判。这个数字看起来只是个默认值，实际上是"协议设计向真实链路条件让步"的一个标本。
+
+**DNS Flag Day 是什么**：它不是学术会议，而是由 DNS 软件厂商、权威运营商与递归运营商共同发起的**协同变更日**——约定在同一天一起改掉某个长期互操作问题，让「谁先改谁吃亏」的僵局被打破。2019 年那次针对权威服务器对 EDNS 的兼容性，2020 年这（2020-10-01）针对 **IP 分片**带来的运维与安全问题，官网给出的核心建议就是把默认 UDP 缓冲收敛到 1232，避免大应答在 MTU 1280 的链路上分片 [6]。所以 1232 不是某个 RFC 的强制值，而是行业协同的默认基线；链路条件确实更好时，运营商仍可显式调大。
 
 `edns-buffer-size` 与 `max-udp-size` 的默认值同为 1232，但方向相反，是实战中最容易调反的一对：
 
@@ -277,13 +318,15 @@ Unbound 当前官方默认值为 **1232**，来源是 DNS Flag Day 2020 的推�
 | `edns-buffer-size` | 出向 | 向权威服务器通告「我能重组多大的 UDP 应答」 |
 | `max-udp-size` | 入向 | 本实例返回给客户端的 UDP 应答最大尺寸 |
 
-把入向调小、却期望出向不分片，不会有任何效果；反过来把出向调到 1472，在 MTU 1280 的隧道或 PPPoE 1492 链路上会产生分片，分片被丢后表现是**等超时再重试 TCP**，而不是「报文自动变小」。这也是为什么本书把 1232 当作默认基线，而不是一个可随意调大的性能旋钮。
+把入向调小、却期望出向不分片，不会有任何效果；反过来把出向调到 1472，在 MTU 1280 的隧道或 PPPoE 1492 链路上会产生分片，分片被丢后表现是**等超时再重试 TCP**，而不是「报文自动变小」。1232 是默认基线，不是可随意调大的性能旋钮。
 
 ### cachedb / Redis 与 ECS 取舍
 
-**cachedb** 模块允许把缓存放到外部后端：官方手册说明，编译时使用 `--with-libhiredis` 且系统装有 hiredis 时，可用 **Redis** 作为持久或共享的缓存后端。它解决的是"多个实例如何共享一份缓存""重启后缓存不丢"这类运维问题，代价也写在同一段文档里：Redis 后端是同步通信，后端变慢会拖住查询处理；缓存有效性由管理员负责，模块不会替你判断数据是否还该用。
+**cachedb 的意义**：Unbound 默认把缓存放在进程内存里，重启即丢、多个实例各存一份。cachedb 模块把缓存挪到外部后端，解决两件运维事——**多实例共享一份缓存**（冷启动不再各自预热）与**重启后缓存仍在**（持久）。代价同样明确：Redis 后端是同步通信，后端变慢会直接拖住查询处理；缓存里的数据还该不该用，模块不替你判断，仍由 TTL 与管理员负责。它和 ECS 是不同维度：cachedb 管「缓存放哪儿」，ECS 管「缓存键里要不要加客户端网段」。
 
-**EDNS Client Subnet（ECS，[RFC 7871]）** 则是 Unbound 明确"取舍"而非"拥抱"的领域。它的动机是让权威服务器按客户端所在网段返回更近的 CDN 节点，但代价是把客户端地址信息向上游扩散，同时把缓存从"按查询名"变成"按查询名 + 网段"，命中率与隐私都受损。官方手册的子网缓存模块说明因此把发送范围做成显式白名单（`send-client-subnet` / `client-subnet-zone`），并提醒启用后缓存与性能会受影响。
+**EDNS 与 HTTPDNS 有关系吗**：没有直接关系，只在「都跟 DNS 有关」这点上同名。EDNS(0) 是 **DNS 报文内部的扩展机制**（OPT 伪记录，[RFC 6891]），作用对象是标准 DNS 查询；HTTPDNS 是**应用层的私有 HTTP API**（第 37 章），根本不发 DNS 报文，自然也用不上 EDNS OPT。两者唯一的交集是「都想解决标准递归链路的某个不足」，但一个在协议内扩展、一个绕开协议另起炉灶。不要把 HTTPDNS 返回的 `client_ip` 与 EDNS Client Subnet（[RFC 7871]）混为一谈：ECS 是把网段塞进 DNS 报文给权威侧，HTTPDNS 是在 TCP 连接里直接看到客户端出口 IP。
+
+**ECS** 则是 Unbound 明确"取舍"而非"拥抱"的领域。它的动机是让权威服务器按客户端所在网段返回更近的 CDN 节点，但代价是把客户端地址信息向上游扩散，同时把缓存从"按查询名"变成"按查询名 + 网段"，命中率与隐私都受损。官方手册的子网缓存模块说明因此把发送范围做成显式白名单（`send-client-subnet` / `client-subnet-zone`），并提醒启用后缓存与性能会受影响。
 
 把这两项和前面的查询名最小化、加密传输放在一起看，能看到一条贯穿十几年的主线：**Unbound 对"多泄露一点信息换一点便利"的功能，默认倾向是关掉或收窄，而不是默认打开**。这不是性能判断，是隐私与安全基线上的选择。
 
@@ -291,40 +334,33 @@ Unbound 当前官方默认值为 **1232**，来源是 DNS Flag Day 2020 的推�
 
 把 ECS、cachedb、查询名最小化、加密传输放在一起看，会发现一条一致的设计倾向：**凡是「多泄露一点信息、或多引入一个外部依赖，换一点便利」的功能，默认都关着或收得很窄**。ECS 需要显式白名单，cachedb 需要显式编译并启用模块，查询名最小化的严格模式默认不咬人，加密传输需要自己配证书与端口。
 
-这不是保守，而是把「信任域」的判断留给部署者：ECS 与 cachedb 需要显式启用，加密传输需要自己配证书与端口，查询名最小化的严格模式要按自身兼容性评估后再决定是否打开，默认值与适用条件均见官方手册。不同上游、不同过滤表、不同信任域本就应该由不同实例承担，而不是在一个实例里用一堆开关互相覆盖——第 3 章会把这个动机展开成四种角色的串联图。
-
-## 书目史料：第一本记录 Unbound 的书
-
-早期可查的书目材料里，第一本系统记录 Unbound 的是 **Jan-Piet Mens 的《Alternative DNS Servers》**（UIT Cambridge，2008/2009）。NLnet Labs 的历史页保存了一篇 2008 年 12 月的短文，记录收到作者赠书、并评价其中 Unbound 与 NSD 的章节；文中还引用了书里一组多产品性能对比数据，并说明该书评述的是 Unbound 1.0，而 1.1 已发布且加入了 DLV 支持与改进统计。
-
-作者于 **2010 年**放出了该书的 DRM-free PDF。本书只把它当作**历史与横评的史料来源**使用：用于确认"Unbound 在 1.0 时代就已被纳入多实现横评""当时的性能对比是怎么做的"，**不节录、不翻译其正文，也不把书里的性能数字当作今天的结论**。二十年前用 queryperf 打出来的每秒查询数，与今天的硬件、加密传输、DNSSEC 验证开销不具可比性。
-
-需要提醒的是史料的可核验性：官方手册的历史章节、发布说明、以及各版本 man page 是版本事实的第一来源；书籍与新闻稿适合用来还原"当时的人怎么想"，不适合用来确定某个参数从哪个版本开始生效。
-
-## 从历史里带走的三条工程判断
-
-历史本身不构成配置建议，但它解释了本书后面所有加固动作背后的默认立场：
-
-1. **边界先定，再填功能。**"不做权威服务器、不要过多特性"写在最早的需求文档里。部署时把不同职责拆给不同实例（第二篇）之所以自然，是因为实现从一开始就按这个边界设计。
-2. **默认安全要靠机制，不靠记得勾选项。**端口随机化、清理器、DNSSEC 默认验证、EDNS 1232 都是"实现默认如此"的结果。反过来，任何需要显式关闭才能变安全的开关（如信任锚相关的降级选项）都属于高危配置面。
-3. **别把两类保护混为一谈。**DNSSEC 保证数据来源与完整性，DoT/DoH/DoQ 保证传输加密与隐私，查询名最小化减少元数据外泄，[RFC 8767] 保证可用性。它们各自补一块，互相不能替代；把其中任何一项当成"已经加密了所以数据可信"，会在排查时得出完全错误的结论。
+这不是保守，而是把「信任域」的判断留给部署者：ECS 与 cachedb 需要显式启用，加密传输需要自己配证书与端口，查询名最小化的严格模式要按自身兼容性评估后再决定是否打开，默认值与适用条件均见官方手册。不同上游、不同过滤表、不同信任域本就应该由不同实例承担，而不是在一个实例里用一堆开关互相覆盖——四种角色的串联图见第 3 章。
 
 ## 本章要点
 
 - Unbound 的核心动机是打破递归解析器的**单一化风险**：需求文档把"代码多样性""除配置外可替代 BIND""尽可能小的够用组件"列为目标，并把"不做权威服务器""不要过多特性"列为明确的非目标。
 - 2004 年由 Jakob Schlyter（Kirei）与 Roy Arends（Nominet）提出架构、VeriSign 与 EP.NET 资助 Java 原型（David Blacka、Matt Larson 等）；约 2006 年 NLnet Labs 加入并承担 C 实现（借鉴 NSD 经验，Wouter Wijngaards 主开发）；2008-05-20 随 1.0 公开发布，BSD 许可。早期参与者与年份在不同史料中表述略有出入，以官方手册历史章节与 NLnet Labs 发布说明为准。
 - 2008 年 Kaminsky 缓存投毒事件把"查询熵是安全边界"和"只有 DNSSEC 能彻底解决伪造"钉死；Unbound 1.0 因端口/查询 ID 随机化与清理器设计，无需为该漏洞紧急补打抗伪造补丁。
-- 里程碑按问题归类：DLV（根未签名时的过渡锚）、DNSSEC 默认验证、libunbound/pythonmod（模块链可裁剪）、DoT/DoH/DoQ（传输加密）、RPZ（跨实现过滤策略）、serve-stale（[RFC 8767] 可用性）、QMIN（[RFC 7816] → [RFC 9156] 元数据）、EDNS 1232（MTU/分片）、cachedb/Redis 与 ECS（共享缓存与隐私取舍）。
+- 里程碑按问题归类：DLV（根未签名时的过渡锚）、DNSSEC 默认验证、libunbound/pythonmod（模块链可裁剪）、DoT/DoH/DoQ（传输加密，ALPN 见 [RFC 7301]）、RPZ（跨实现过滤策略）、serve-stale（[RFC 8767] 可用性）、QMIN（[RFC 7816] → [RFC 9156] 元数据）、EDNS(0) 1232（DNS Flag Day 2020，[RFC 6891]）、cachedb/Redis 与 ECS（共享缓存与隐私取舍）。
 - DNSSEC 是**数据完整性/来源认证**，DoT/DoH/DoQ 是**传输加密/隐私**，查询名最小化不是加密；三类机制互不替代，这是全书一致口径。
-- Jan-Piet Mens《Alternative DNS Servers》（UIT Cambridge, 2008/2009；2010 年放出 DRM-free PDF）是第一本记录 Unbound 的书，仅作史料来源，不节录正文、不引用其性能数字作为今日结论。
+- FreeBSD 10.0-RELEASE（2014-01-20）把 Unbound 引入基本系统作本地缓存解析器并移除 BIND [4]；这是该发行版的事件，不是「BSD 许可 → 默认 Unbound」的推论。EDNS(0) 属标准 DNS 报文内扩展，与 HTTPDNS 私有 API 无直接关系。
 
 ## 参考资料
 
+**本章引用标记**：[1] CERT/CC VU#800113；[2] CVE-2008-1447；[3] NLnet Labs 关于 2008 缓存投毒的说明；[4] FreeBSD 10.0-RELEASE 发布公告；[5] [RFC 7301] ALPN；[6] DNS Flag Day 2020 官网。正文里的 `[1][2]` 等即指向下列条目。
+
+- [1] CERT Coordination Center，*VU#800113 — Multiple DNS implementations vulnerable to cache poisoning*（2008-07；含 Kaminsky 披露、TXID/源端口熵与厂商声明）：https://www.kb.cert.org/vuls/id/800113
+- [2] MITRE / NVD，*CVE-2008-1447*（DNS 缓存投毒）：https://www.cve.org/CVERecord?id=CVE-2008-1447
+- [3] NLnet Labs，Unbound 官方手册 · 2008 年 DNS 缓存投毒漏洞说明：https://unbound.docs.nlnetlabs.nl/en/latest/reference/history/dns-cache-poisoning-vulnerability.html
+- [4] FreeBSD Release Engineering Team，*FreeBSD 10.0-RELEASE Announcement*（2014-01-20，highlights 中 Unbound 引入 / BIND 移除）：https://www.freebsd.org/releases/10.0R/announce.html
+- [5] RFC Editor，[RFC 7301] *Transport Layer Security (TLS) Application-Layer Protocol Negotiation Extension*：https://www.rfc-editor.org/rfc/rfc7301
+- [6] DNS Flag Day，*DNS flag day 2020*（2020-10-01，IP 分片与 1232 默认缓冲）：https://www.dnsflagday.net/2020/
+- RFC Editor，[RFC 6891] *Extension Mechanisms for DNS (EDNS(0))*：https://www.rfc-editor.org/rfc/rfc6891
+- RFC Editor，[RFC 5452] *Measures for Making DNS More Resilient against Forged Answers*：https://www.rfc-editor.org/rfc/rfc5452
 - NLnet Labs，Unbound 官方手册 · 历史章节：https://unbound.docs.nlnetlabs.nl/en/latest/reference/history/index.html
 - NLnet Labs，Unbound 官方手册 · 早期需求文档（目标与非目标、项目起源）：https://unbound.docs.nlnetlabs.nl/en/latest/reference/history/requirements.html
 - NLnet Labs，Unbound 官方手册 · Java 原型说明：https://unbound.docs.nlnetlabs.nl/en/latest/reference/history/prototype-resolver.html
 - NLnet Labs，Unbound 官方手册 · 2008 年 DNS 缓存投毒漏洞说明：https://unbound.docs.nlnetlabs.nl/en/latest/reference/history/dns-cache-poisoning-vulnerability.html
 - NLnet Labs，Unbound 官方手册 · 1.0.2 补丁公告：https://unbound.docs.nlnetlabs.nl/en/latest/reference/history/patch-announce102.html
-- NLnet Labs，Unbound 官方手册 · 书目史料（Alternative DNS Servers）：https://unbound.docs.nlnetlabs.nl/en/latest/reference/history/book-news.html
 - NLnet Labs，Unbound 官方手册 · `unbound.conf(5)` 配置参考：https://unbound.docs.nlnetlabs.nl/en/latest/manpages/unbound.conf.html
 - RFC Editor，[RFC 8767] *Serving Stale Data to Improve DNS Resiliency*：https://www.rfc-editor.org/rfc/rfc8767.txt

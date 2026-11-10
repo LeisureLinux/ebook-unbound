@@ -2,7 +2,6 @@
 
 一台递归解析器把 DNSSEC 打开，最容易产生的错觉是「配置里写了 `validator`，所以我已经安全了」。实际生效与否取决于三件事：`module-config` 里有没有 `validator`、信任锚（trust anchor）文件在不在且是否可写、以及验证失败时策略是**放行**还是**拒绝**。三者任一缺位，应答就可能被原样透传给客户端，而配置文件看起来毫无问题。
 
-本章只讲配置与验证：怎么把信任锚建起来、怎么用 `dig` 把三种状态逐一测出来、哪些 `harden-*` 开关与 DNSSEC 有关哪些无关、锚失效后怎么观测与恢复。DNSSEC 的设计原理、信任链的四态定义与 [RFC 4033] / [RFC 4034] / [RFC 4035] / [RFC 5011] 的条文逻辑留给第 16 章；加密传输（DoT / DoH / DoQ）管传输加密与隐私，DNSSEC 管数据完整性与来源认证，二者不互相替代。本章实验环境是一台家庭网关 + 一台境外云主机，以下均为教学用示例地址：`192.0.2.0/24`、`198.51.100.0/24`、`203.0.113.0/24`（[RFC 5737]），IPv6 用 `2001:db8::/32`，域名用 `example.net` / `example.org`，本机监听用回环与 `192.168.68.0/24` 这类通用内网写法，凭据写 `<TOKEN>`。
 
 ## 信任锚不是一段静态配置
 
@@ -50,12 +49,12 @@ stat -c '%U:%G %a %n' /var/lib/unbound /var/lib/unbound/root.key
 下面是本章的基线配置。它假定这是一台**自己做完整递归**的解析器（第 4、6 章的角色），不是转发器。
 
 ```yaml
-# /etc/unbound/unbound.conf.d/10-dnssec.conf —— 教学用示例配置
+# /etc/unbound/unbound.conf.d/10-dnssec.conf
 server:
     interface: 127.0.0.1@5353
-    interface: 192.168.68.1@5353
+    interface: 192.0.2.1@5353
     access-control: 127.0.0.0/8 allow
-    access-control: 192.168.68.0/24 allow
+    access-control: 192.0.2.0/24 allow
     username: unbound
     chroot: ""
     do-ip4: yes

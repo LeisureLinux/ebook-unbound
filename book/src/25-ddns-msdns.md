@@ -2,7 +2,7 @@
 
 内部名字不是凭空出现的：一台机器拿到 DHCP 租约，或者一个服务注册了自己，总得有人把「名字 → 地址」写进某个权威区。Unbound 在这条链路上扮演的角色经常被误读，最常见的一句话是「把 Unbound 的 DDNS 配一下」。这句话没有对应的配置项，也没有对应的功能。先把这个立论钉死，再看微软 DNS 那套真正实现了动态更新的模型，最后给出纯 Unbound 架构里让内网动态名字落地的三条绕行路径。
 
-以下为教学用示例地址：IPv4 只用 RFC 5737 的 `192.0.2.0/24`、`198.51.100.0/24`、`203.0.113.0/24`，IPv6 用 `2001:db8::/32`；域名只用 `example.net` / `example.org` / `home.arpa.`，主机名 `gw-01` / `edge-01` / `cloud-01` 均为示例，不代表任何真实环境。密钥与共享秘密一律写作 `<TSIG_KEY>`、`***`。
+
 
 与相邻章节的边界：第 2 章已经做过主流实现的功能横评，本章不再贴产品对照表；第 6 章给了本地根区镜像的完整配置，本章只在必要处一句交叉引用，不重画那份配置。
 
@@ -148,7 +148,7 @@ NLnet Labs 邮件列表 2014-06 的 `[Unbound-users] Unbound vs MS Resolver` 讨
 
 **这是社区观点，不是 NLnet Labs 的官方规定，也不是微软的强制要求。** 它描述的是一种减少摩擦的部署习惯：把「谁负责写内部区」和「谁负责解析外部名字」拆开，避免让一个递归验证器去承担它不做的写入职责。是否照做取决于现有 AD 拓扑，不属于协议约束。把它写成「官方要求域控必须指向微软 DNS」是错的。
 
-## 三条绕行路径（本书归纳）
+## 三条绕行路径
 
 > **以下三方案是本书对工程做法的自定义归纳，不是任何软件的官方功能列表，也不是「Unbound 的 DDNS」。** 共同前提是：Unbound 只做递归 / 验证 / 转发，写入动作全部发生在它之外。
 
@@ -287,7 +287,7 @@ unbound-control stats | grep 'num.query.opcode.UPDATE'
 - 「非常有限的权威服务」= `local-zone` / `local-data` 静态配置 + `unbound-control local_zone` / `local_data` 运行时增删；**运行时改动不持久化**，重启或 reload 即回到配置文件，必须靠配置管理兜底。
 - 微软 DNS 走的是完整 [RFC 2136] 模型：原子 UPDATE + prerequisite、更新落到主服务器（AD 集成区可发给任意持副本的 DC）、**安全动态更新只对 AD 集成区可用且集成后默认「仅安全更新」**、文件型主区默认不开放；流程是 TKEY（Windows 只用 Kerberos）→ TSIG 签名 UPDATE → 按 ACL 写 AD → 签名应答，相关 [RFC 3645] GSS-TSIG。
 - 配套要点与坑：`DnsUpdateProxy` / `DHCID` + Name Protection / aging-scavenging **默认关**、no-refresh 与 refresh 各 7 天 / `_msdcs` 与 DC locator / GlobalNames；时钟偏差 > 5 分钟 Kerberos 失败、DHCP 须用低权限专用凭据否则 owner 错乱、反向区容易漏建。2014-06 邮件列表的「域控指向微软 DNS、Unbound 作对外递归验证层」只是**社区观点**。
-- 纯 Unbound 架构的三条绕行路径（**本书归纳**）：①外部权威 + DHCP 脚本 `nsupdate` + `stub-zone`；②NSD 权威 + Unbound 递归（`auth-zone` 是只读根镜像，不是可写权威区，见第 6 章）；③静态生成 `local-data` include（第 23 章 `wpad.<内网域>` 即此类）。三者差别集中在实时性、认证、额外组件与回滚点。
+- 纯 Unbound 架构的三条绕行路径：①外部权威 + DHCP 脚本 `nsupdate` + `stub-zone`；②NSD 权威 + Unbound 递归（`auth-zone` 是只读根镜像，不是可写权威区，见第 6 章）；③静态生成 `local-data` include（第 23 章 `wpad.<内网域>` 即此类）。三者差别集中在实时性、认证、额外组件与回滚点。
 
 ## 参考资料
 

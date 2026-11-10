@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1200" viewBox="0 0 900 1200">
+<defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="0.6" y2="1">
+    <stop offset="0%" stop-color="#0d0d27"/><stop offset="60%" stop-color="#16173f"/>
+    <stop offset="100%" stop-color="#0d0d27"/></linearGradient>
+  <linearGradient id="facet" x1="0" y1="0" x2="1" y2="0">
+    <stop offset="0%" stop-color="#0d0d27"/><stop offset="50%" stop-color="#2d2e83"/>
+    <stop offset="100%" stop-color="#0d0d27"/></linearGradient>
+  <radialGradient id="glow"><stop offset="0%" stop-color="#1fc2d7" stop-opacity="0.18"/>
+    <stop offset="100%" stop-color="#1fc2d7" stop-opacity="0"/></radialGradient>
+</defs>
+<rect width="900" height="1200" fill="url(#bg)"/>
+<circle cx="450" cy="430" r="330" fill="url(#glow)"/>
+<g font-family="DejaVu Sans, Noto Sans CJK SC, sans-serif">
+  <text x="60" y="90" fill="#1fc2d7" font-size="22" letter-spacing="6">DNS / UNBOUND</text>
+  <line x1="60" y1="108" x2="840" y2="108" stroke="#1fc2d7" stroke-width="1.5" opacity="0.45"/>
+</g>
+<g font-family="DejaVu Sans Mono, monospace" font-size="20"><rect x="150" y="240" width="300" height="150" rx="10" fill="#2d2e83" opacity="0.5"/><rect x="150" y="240" width="300" height="38" rx="10" fill="#1289a8" opacity="0.55"/><text x="166" y="266" fill="#e2e8f0" font-size="17">resolver</text><text x="166" y="320" fill="#5eead4" font-size="22">:5335</text><line x1="166" y1="340" x2="434" y2="340" stroke="#1fc2d7" stroke-width="1.5" opacity="0.5" stroke-dasharray="8 6"/><text x="166" y="368" fill="#94a3b8" font-size="15">unbound.conf</text><rect x="450" y="240" width="300" height="150" rx="10" fill="#2d2e83" opacity="0.5"/><rect x="450" y="240" width="300" height="38" rx="10" fill="#1289a8" opacity="0.55"/><text x="466" y="266" fill="#e2e8f0" font-size="17">forwarder</text><text x="466" y="320" fill="#5eead4" font-size="22">:5357</text><line x1="466" y1="340" x2="734" y2="340" stroke="#1fc2d7" stroke-width="1.5" opacity="0.5" stroke-dasharray="8 6"/><text x="466" y="368" fill="#94a3b8" font-size="15">unbound.conf</text><rect x="150" y="470" width="300" height="150" rx="10" fill="#2d2e83" opacity="0.5"/><rect x="150" y="470" width="300" height="38" rx="10" fill="#1289a8" opacity="0.55"/><text x="166" y="496" fill="#e2e8f0" font-size="17">mirror</text><text x="166" y="550" fill="#5eead4" font-size="22">:1053</text><line x1="166" y1="570" x2="434" y2="570" stroke="#1fc2d7" stroke-width="1.5" opacity="0.5" stroke-dasharray="8 6"/><text x="166" y="598" fill="#94a3b8" font-size="15">unbound.conf</text><rect x="450" y="470" width="300" height="150" rx="10" fill="#2d2e83" opacity="0.5"/><rect x="450" y="470" width="300" height="38" rx="10" fill="#1289a8" opacity="0.55"/><text x="466" y="496" fill="#e2e8f0" font-size="17">auth</text><text x="466" y="550" fill="#5eead4" font-size="22">:5358</text><line x1="466" y1="570" x2="734" y2="570" stroke="#1fc2d7" stroke-width="1.5" opacity="0.5" stroke-dasharray="8 6"/><text x="466" y="598" fill="#94a3b8" font-size="15">unbound.conf</text></g><g fill="none" stroke="#1fc2d7" stroke-width="2" opacity="0.6"><path d="M300 390 C300 720 450 720 450 760"/><path d="M600 390 C600 720 450 720 450 760"/><path d="M300 620 C300 720 450 720 450 760"/><path d="M600 620 C600 720 450 720 450 760"/></g><path d="M450 760 L560 825 L450 890 L340 825 Z" fill="url(#facet)"/><circle cx="450" cy="825" r="10" fill="#f26521"/>
+<line x1="330" y1="1100" x2="570" y2="1100" stroke="url(#facet)" stroke-width="2" opacity="0.6"/>
+</svg>

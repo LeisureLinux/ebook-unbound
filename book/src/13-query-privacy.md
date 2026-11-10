@@ -2,7 +2,7 @@
 
 一台递归解析器向权威侧发出的迭代查询，默认会把完整查询名（QNAME）逐级送出去。查询名最小化（QNAME minimisation，QMIN）要减少的正是这份元数据；防降级要保证加密链路不会被静默剥掉；DDR 压制要保证客户端不会绕过本地解析器直连外部端点。这三条是**同一件事的三个方向**：谁看到了查询、链路有没有被剥掉、查询有没有走别的路。
 
-本章只处理第三篇的「怎么做」：参数、命令、验证与失败模式。QMIN 的协议演进（[RFC 7816] → [RFC 9156]）、DoT/DoH/DoQ 的 RFC 对比放在第四篇第 17 章。以下地址均为教学用示例地址，域名用 `dns.example.org`、`resolver.example.net`，凭据写作 `<TOKEN>`。
+本章只处理第三篇的「怎么做」：参数、命令、验证与失败模式。QMIN 的协议演进（[RFC 7816] → [RFC 9156]）、DoT/DoH/DoQ 的 RFC 对比放在第四篇第 17 章。
 
 ## QMIN 的动机与边界
 
@@ -213,6 +213,8 @@ unbound-control list_local_zones | grep -E 'fallback|backup' || true
 
 客户端绕过本地解析器的路径有两条：DDR（Discovery of Designated Resolvers，[RFC 9462]）自动发现加密解析器，以及浏览器自带的 DoH。两条都要在本地解析器上压制，而不是靠封 IP。
 
+**DDR 不是 IPv6 独有的**：它由 [RFC 9462] 定义，触发条件是「客户端只知道一个**解析器 IP 地址**」——不论这个地址是 IPv4 还是 IPv6。RFC §4 明确写了：若指定解析器通过 IPv4 可达，就应提供一条 A 记录指向指定解析器的 IPv4 地址；若通过 IPv6 可达，就提供 AAAA 记录；并提醒「只连得上某一个地址族的客户端，可能用不上另一族发现的端点」。也就是说 DHCP（[RFC 2132]）下发的 IPv4 DNS 与 IPv6 RA/RDNSS（[RFC 8415]）下发的 IPv6 DNS 都能触发 DDR，只是发现出的加密端点要按地址族给对记录。本书第 19 章讲 RDNSS 时提到它，是因为那里正好在配 IPv6 解析器地址，**不是**因为 DDR 只能跑在 v6 上。
+
 ```yaml
 # /etc/unbound/unbound.conf.d/30-ddr-canary.conf
 server:
@@ -220,7 +222,7 @@ server:
     local-zone: "use-application-dns.net." always_nxdomain
 ```
 
-**为什么这么设**：`_dns.resolver.arpa.` 是 DDR 的特区，客户端通过查询它的 SVCB / HTTPS 记录来发现 DoT / DoH / DoQ 端点。`always_nodata` 返回 NODATA（名字存在但没有所问类型的记录），且**忽略该区下的 local-data**，等于告诉客户端「这里没有可发现的加密解析器」，客户端继续用本地解析器。`always_nxdomain` 对 Firefox 的 canary 域生效：回 NXDOMAIN 让 Firefox 关闭内置 DoH（第 12 章）。两者语义不同，不能互换——`always_nxdomain` 会让「名字不存在」，`always_nodata` 让「名字存在但无此类型」。
+**为什么这么设**：`_dns.resolver.arpa.` 是 DDR 的特区，客户端通过查询它的 SVCB / HTTPS 记录来发现 DoT / DoH / DoQ 端点。**SVCB**（Service Binding，[RFC 9460]）是「服务绑定」记录：在发起连接前就告诉客户端「这个服务有哪些替代端点、各自带什么参数」（端口、协议、IP hint、TLS 配置等），HTTPS 记录是它专用于 HTTP 的变体；DDR 借它把加密解析器端点一次性交出去（第 2 章有 SVCB 的完整概念）。`always_nodata` 返回 NODATA（名字存在但没有所问类型的记录），且**忽略该区下的 local-data**，等于告诉客户端「这里没有可发现的加密解析器」，客户端继续用本地解析器。`always_nxdomain` 对 Firefox 的 canary 域生效：回 NXDOMAIN 让 Firefox 关闭内置 DoH（第 12 章）。两者语义不同，不能互换——`always_nxdomain` 会让「名字不存在」，`always_nodata` 让「名字存在但无此类型」。
 
 **怎么验证**：
 
@@ -233,11 +235,13 @@ unbound-control list_local_zones | grep -E '_dns.resolver|use-application'
 
 期望 SVCB 查询 `status: NOERROR`、ANSWER SECTION 为空（NODATA）；canary 域 `status: NXDOMAIN`。
 
+**canary 域是什么意思**：canary 原意是「矿井里的金丝雀」——先于矿工察觉毒气。在软件里指**一个专门用来探测某项功能是否被启用的探测点**。Firefox 的 `use-application-dns.net` 就是这样的探测域：浏览器在启用内置 DoH 之前先查它，若返回 NXDOMAIN（或不是预期应答），就判定「当前网络不希望我自动开 DoH」并退回系统解析器；返回正常地址则允许升级。它给企业/家庭网络留了一个**不用封 IP、不用改浏览器配置**就能声明策略的开关。本书用 `always_nxdomain` 让本地解析器对该域回 NXDOMAIN，正是在模拟这个声明；Chrome 不走这个机制（靠已知 DoH 提供商列表匹配，见下节），所以 canary 只对 Firefox 系生效。[1]
+
 **失败模式 / 回滚点**：如果链路上还有另一层解析器（nft 劫持目标、dnsdist 后端、系统存根），那一层没配这两条 → 客户端照样发现端点或启用内置 DoH。**要逐层验证**。另一个坑是 `always_nodata` 与 `static` 的区别：前者忽略 `local-data`，需要给个别名字留白名单时应改用 `transparent` 或配合具体 `local-data`。回滚：注释掉两条 `local-zone` 并 restart，客户端立即恢复默认发现行为。
 
 ### Chrome 与「按 IP 封 443 是 denylist 不是证明」
 
-Chrome 的内置 DoH 升级依赖**系统解析器是否匹配已知 DoH 提供商列表**。指向私有解析器（如 `192.168.68.1`、`fd00::1`、`192.0.2.1`）时不在列表里，Chrome 不会自行升级，会继续用系统解析器——因此不需要 canary 域，也不需要封域名。
+Chrome 的内置 DoH 升级依赖**系统解析器是否匹配已知 DoH 提供商列表**。指向私有解析器（如 `192.0.2.1`、`fd00::1`、`192.0.2.1`）时不在列表里，Chrome 不会自行升级，会继续用系统解析器——因此不需要 canary 域，也不需要封域名。
 
 按 IP 封 443 的问题是三重的：会误伤同一 IP 上的正常 Web 服务；端点换地址就失效；最重要的是它**不能证明客户端没有绕过**，只能证明「这几个地址不通」。真正的验收是「能不能测出绕过」：把一台客户端的系统 DNS 临时改成公共解析器，看浏览器是否升级到内置 DoH、本地 canary 是否仍把它压回来，并用抓包确认有没有直连外部 443 的 DoH 流量。
 
@@ -360,7 +364,11 @@ systemctl list-timers | grep -i dnstap || true
 - RFC 9156，*DNS Query Name Minimisation to Improve Privacy*：https://www.rfc-editor.org/rfc/rfc9156
 - RFC 7816，*DNS Query Name Minimisation to Improve Privacy*（前一版）：https://www.rfc-editor.org/rfc/rfc7816
 - RFC 8020，*NXDOMAIN: There Really Is Nothing Underneath*：https://www.rfc-editor.org/rfc/rfc8020
-- RFC 9462，*Discovery of Designated Resolvers (DDR)*：https://www.rfc-editor.org/rfc/rfc9462
+- Mozilla Support，*Canary domain `use-application-dns.net`*（Firefox 内置 DoH 探测域的官方说明）[1]：https://support.mozilla.org/en-US/kb/canary-domain-use-application-dnsnet
+- RFC Editor，[RFC 9460] *Service Binding and Parameter Specification via the DNS (SVCB and HTTPS Resource Records)*：https://www.rfc-editor.org/rfc/rfc9460
+- RFC Editor，[RFC 2132] *DHCP Options and BOOTP Vendor Extensions*（IPv4 侧的 option 6 DNS）：https://www.rfc-editor.org/rfc/rfc2132
+- RFC Editor，[RFC 8415] *Dynamic Host Configuration Protocol for IPv6 (DHCPv6)*：https://www.rfc-editor.org/rfc/rfc8415
+- RFC Editor，[RFC 9462] *Discovery of Designated Resolvers (DDR)*：https://www.rfc-editor.org/rfc/rfc9462
 - RFC 7871，*Client Subnet in DNS Queries*：https://www.rfc-editor.org/rfc/rfc7871
 - Unbound 官方手册，`unbound.conf(5)` 的 `qname-minimisation`、`qname-minimisation-strict`、`harden-below-nxdomain`、`local-zone` 类型、EDNS Client Subnet 模块与 dnstap 段：https://unbound.docs.nlnetlabs.nl/en/latest/manpages/unbound.conf.html
 - Unbound 官方手册，`unbound-control(8)` 的 `list_forwards` / `flush_zone` / `get_option`：https://unbound.docs.nlnetlabs.nl/en/latest/manpages/unbound-control.html

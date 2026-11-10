@@ -2,7 +2,7 @@
 
 本章讨论的是一种**不属于 DNS 协议体系**的解析服务形态。它不是加密传输的又一种写法，也不是某个 RFC 的实现，而是应用用 HTTP(S) 去调一个私有 API、拿回一组 IP、再自己改写网络请求的过程。第 12 章的 DoH [RFC 8484] 与它名字相近，但载荷、客户端形态与信任模型都不同；本书把那层区分收在此章统一讲，其他章不再复述。
 
-本章所有地址均为教学用示例：IPv4 取 [RFC 5737] 的 `192.0.2.0/24`、`198.51.100.0/24`、`203.0.113.0/24`，IPv6 用 `2001:db8::/32`；域名用 `example.net` / `example.org` / `api.example.com`，主机名 `gw-01` / `edge-01` / `cloud-01` 均为示意，不指向任何真实环境。文中出现的厂商入口 IP、Account ID、密钥一律写成文档值或 `<TOKEN>` / `<ACCOUNT_ID>`，不提供可直接照抄的生产凭据。示例拓扑统一表述为「一台家庭网关 + 一台境外云主机的实验环境」。
+
 
 ## 先把它和标准 DNS 分开
 
@@ -411,4 +411,3 @@ HTTP 要手动写 `Host`；HTTPS 要设 SNI 并用**原域名**校验证书，�
 - Kyle Schomp 等，*Akamai DNS: Providing Authoritative Answers to the World's Queries*, SIGCOMM 2020 — https://groups.cs.umass.edu/wp-content/uploads/sites/3/2020/07/sigcomm2020-final289.pdf
 - RIPE-823, *DNS Resolver Recommendations* — https://www.ripe.net/publications/docs/ripe-823
 
-其余引用（腾讯云《移动解析 HTTPDNS 快速入门》、UC U4 内核接入、《软件学报》2024 加密 DNS 综述、ESORICS 2024 基础设施依赖测量）按标题在厂商文档站与论文索引检索；本地副本与下载状态见 `resources/httpdns-refs/MANIFEST.md`。示例地址、域名、Account ID 与密钥均为教学用文档值，不指向任何真实服务。

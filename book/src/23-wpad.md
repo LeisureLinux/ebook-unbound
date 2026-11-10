@@ -4,7 +4,7 @@
 
 先把边界立清楚。本书第五篇的主线是策略网关上的**透明代理**：流量在网关被接管，客户端不需要知道代理存在，也不需要谁来告诉它"去哪里找配置"。WPAD 在这条主线里只有两个位置——给那些必须靠自动配置才能工作的**遗留客户端兼容**，以及把"名字 → 配置 → 流量路径"这条链讲透的**原理科普**。它不该出现在新架构的依赖图里，最后一节会把理由摊开讲。
 
-本章不碰第 12 章的 DoH 端点配置，也不做第 2 章的产品横评；RFC 原文与编号的完整链接由第四篇统一索引章收录。以下实验环境统一表述为**一台家庭网关 + 一台云主机的实验环境**，其中**所有地址均为教学用示例地址**：IPv4 取 `192.0.2.0/24`、`198.51.100.0/24`、`203.0.113.0/24`（[RFC 5737]），IPv6 取 `2001:db8::/32`，域名只用 `example.net` / `example.org`。
+
 
 ## 两层：找 URL 与决定怎么走
 
@@ -133,7 +133,6 @@ PAC 来自 **Netscape 1996** 的代理自动配置约定，入口函数固定为
 下面这份是教学用的 DIRECT / PROXY 分流示例，地址全部来自文档地址段，域名只有 `example.net` / `example.org`；`198.51.100.10:3128` 是示例代理端点，`192.0.2.10` 是提供 PAC 的站点地址。
 
 ```javascript
-// wpad.dat —— 教学用示例；地址取 [RFC 5737] 文档段与 2001:db8::/32
 function FindProxyForURL(url, host) {
     var DIRECT = "DIRECT";
     var PROXY  = "PROXY 198.51.100.10:3128";
@@ -178,7 +177,7 @@ function FindProxyForURL(url, host) {
 ### nginx 提供 /wpad.dat
 
 ```conf
-# /etc/nginx/conf.d/wpad.conf —— 教学用示例地址
+# /etc/nginx/conf.d/wpad.conf
 server {
     listen 80;
     server_name wpad.example.net;
@@ -205,7 +204,7 @@ server {
 ### Unbound 把名字收在本地
 
 ```conf
-# /etc/unbound/unbound.conf.d/wpad.conf —— 教学用示例地址
+# /etc/unbound/unbound.conf.d/wpad.conf
 server:
     local-zone: "example.net." static
     local-data: "wpad.example.net. 300 IN A 192.0.2.10"

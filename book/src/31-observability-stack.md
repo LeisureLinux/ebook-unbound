@@ -1,8 +1,7 @@
 # 可观测性栈：dnstap、Grafana、eBPF 与告警
 
-一个 `unbound-control stats_noreset` 能告诉你「现在有多少 SERVFAIL」，却回答不了「哪个客户端把某个域刷出了几千个不同名字」，也回答不了「出向 UDP/53 是被 nftables 吃了，还是被上游丢了」。把这三种问题混在一处排查，结局往往是：指标看着正常，用户仍在报障，于是反复重启 Unbound 刷缓存，而真正的断点在别处。可观测性不是一个开关，是**三条互相独立、又能互相印证的链路**：第 7 章已把采集点铺好（`unbound-control` 按需统计、`log-servfail`、dnstap 六类消息全开、全量日志 30 天保留期与到期删除脚本），本章不重复那段配置，只讲怎么接进指标与日志系统、怎么补上操作系统这一层、怎么把数字变成能分级/降噪/演练的告警。
+一个 `unbound-control stats_noreset` 能告诉你「现在有多少 SERVFAIL」，却回答不了「哪个客户端把某个域刷出了几千个不同名字」，也回答不了「出向 UDP/53 是被 nftables 吃了，还是被上游丢了」。把这三种问题混在一处排查，结局往往是：指标看着正常，用户仍在报障，于是反复重启 Unbound 刷缓存，而真正的断点在别处。可观测性不是一个开关，是**三条互相独立、又能互相印证的链路**：`unbound-control` 按需统计、dnstap 查询流、以及操作系统侧的收发与归因。这里讲怎么接进指标与日志系统、怎么把数字变成能分级/降噪/演练的告警。
 
-本章集成骨架（Prometheus / Grafana / Loki / Elasticsearch / eBPF 的组合、面板划分、规则表达式）一律标注为**本书归纳**，不是 Unbound 官方规定。教学示例统一为**一台家庭网关 + 一台云主机的实验环境**，IPv4 只用 `192.0.2.0/24`、`198.51.100.0/24`、`203.0.113.0/24`（[RFC 5737]），IPv6 只用 `2001:db8::/32`（[RFC 3849]），域名只用 `example.net` / `example.org` / `home.arpa.`，主机名用 `gw-01` / `cloud-01`，凭据一律 `<TOKEN>`。以下均为**教学用示例地址**。
 
 ## 先划边界：采集点已有，缺的是栈
 
@@ -20,11 +19,11 @@
 
 ### `stats_noreset` 的读数纪律
 
-第 7 章已说明 `stats` 会重置计数（受 `statistics-cumulative` 控制），基线必须全程用 `stats_noreset`。集成进栈后多一条纪律：**只读一次，别让两个采集器同时读**。下面这段是可复制的快照骨架；若已装社区 exporter，就不必再跑第二套采集：
+`stats` 会重置计数（受 `statistics-cumulative` 控制），基线必须全程用 `stats_noreset`。集成进栈后多一条纪律：**只读一次，别让两个采集器同时读**。下面这段是可复制的快照骨架；若已装社区 exporter，就不必再跑第二套采集：
 
 ```bash
 #!/bin/sh
-# /usr/local/sbin/unbound-stats-snapshot.sh —— 教学用示例，单实例按需取
+# /usr/local/sbin/unbound-stats-snapshot.sh
 set -eu
 CTRL="unbound-control -c /etc/unbound/recursor.conf"
 OUT=/var/lib/node_exporter/textfile_collector/unbound.prom
@@ -76,7 +75,7 @@ chronyc tracking 2>/dev/null | head -5 || true
 
 ### socket → consumer 的拓扑
 
-第 7 章已配好 `dnstap-socket-path: /run/dnstap.sock` 与六项消息开关。集成侧要画清的是谁在监听，以及监听者挂了会怎样：
+集成侧要画清的是谁在监听，以及监听者挂了会怎样：
 
 ```text
 [Unbound] --fstrm 帧--> /run/dnstap.sock (unix socket) --> [dnstap consumer]
@@ -96,7 +95,7 @@ chronyc tracking 2>/dev/null | head -5 || true
 
 ### 消息类别、全量与采样
 
-dnstap 消息按观察点与方向展开：client、resolver、forwarder 等观察点各配 query / response 两个方向，第 7 章六项 `dnstap-log-*-messages` 全开覆盖的正是这三组观察点的两个方向。本章按**四类**口径使用：客户端查询、客户端应答、解析器（含转发器）出向查询、出向应答；这四类是**本书归纳**，完整消息类型与字段定义见官方 dnstap 资料。
+dnstap 消息按观察点与方向展开：client、resolver、forwarder 等观察点各配 query / response 两个方向，第 7 章六项 `dnstap-log-*-messages` 全开覆盖的正是这三组观察点的两个方向。按**四类**口径使用：客户端查询、客户端应答、解析器（含转发器）出向查询、出向应答；完整消息类型与字段定义见官方 dnstap 资料。
 
 | 策略 | 做法 | 代价 | 适用 |
 |---|---|---|---|
@@ -104,7 +103,7 @@ dnstap 消息按观察点与方向展开：client、resolver、forwarder 等观�
 | 按方向采样 | 只留 client 侧，或按 `1/N` 抽帧 | 无法还原「问了哪个上游」 | 只关心客户端行为 |
 | 按名字 / 源采样 | 排除健康探测域与白名单源 | **容易把异常一并排除** | 容量受限时的退让，需白名单审计 |
 
-采样最危险的不是丢数据，而是**丢掉的恰好是异常**：隧道流量通常 qps 不高，`1/N` 抽样后唯一 FQDN 数被系统性低估，第 29 章的流量分析直接失效。宁可明确写死 30 天保留期 + 到期删除（第 7 章已落地），也不在采集端悄悄采样。落盘格式常见 JSON / fstrm 两类，字段名与时间字段含义随 consumer 实现而异，见所选实现的官方文档。
+采样最危险的不是丢数据，而是**丢掉的恰好是异常**：隧道流量通常 qps 不高，`1/N` 抽样后唯一 FQDN 数被系统性低估，第 29 章的流量分析直接失效。宁可明确写死保留期 + 到期删除，也不在采集端悄悄采样。落盘格式常见 JSON / fstrm 两类，字段名与时间字段含义随 consumer 实现而异，见所选实现的官方文档。
 
 ### 查询日志本身就是隐私副本
 
@@ -193,16 +192,16 @@ nft list chain inet mangle output-tproxy
 
 **为什么这么设**：① 确认「解析器出向豁免」有没有被规则改动顶掉；② 看 UDP/53 conntrack 是否堆积，是重传与超时的旁证；③ 是**只读**查看（不同于 `nft reset counters`），不会破坏基线。nft counter 能回答 ① ② 两层都回答不了的问题：那个包究竟有没有走到 `meta mark set` 那一行。  
 **怎么验证**：先 `nft list ruleset | grep -i counter`，做一次 `dig @192.0.2.53 example.org A`，再读一次，对应规则 packets 应递增；若 `output-tproxy` 链尾计数递增而解析超时，优先怀疑第 14 章那类「自己的出向被自己劫持」。  
-**失败模式 / 回滚点**：`nft reset counters` 会清零所有计数（第 14 章已强调），排查前后不要随手执行，否则演练差分证据全没了；`conntrack` 表为空不代表没有流量（UDP 条目寿命短，或工具未安装被 `|| true` 吞掉）。恢复规则集用第 14 章备份文件整体 `nft -f`，不要逐条删。
+**失败模式 / 回滚点**：`nft reset counters` 会清零所有计数，排查前后不要随手执行，否则演练差分证据全没了；`conntrack` 表为空不代表没有流量（UDP 条目寿命短，或工具未安装被 `|| true` 吞掉）。恢复规则集用第 14 章备份文件整体 `nft -f`，不要逐条删。
 
-## 集成骨架（本书归纳，不是官方规定）
+## 集成骨架
 
 ### stats → Prometheus → Grafana
 
 常见接法是社区 exporter（如 `unbound_exporter` 一类实现）把 `unbound-control stats` 转成 `/metrics`，Prometheus 抓取，Grafana 出面板；也可走上一节的 textfile 快照。下面 `prometheus.yml` 片段是可复制骨架：
 
 ```yaml
-# /etc/prometheus/prometheus.yml 片段 —— 教学用示例地址；端口为占位，以实际监听为准
+# /etc/prometheus/prometheus.yml 片段
 global: { scrape_interval: 15s, evaluation_interval: 15s }
 rule_files: [ /etc/prometheus/rules/unbound.yml ]
 alerting:
@@ -329,7 +328,7 @@ echo >> /var/log/unbound-baseline.tsv
 
 ## 演练：三条链路都要看见
 
-第 28 章给了故障域隔离的注入清单，本章只做**观测验收**——不追求把服务搞坏，只验证三条链路各自能不能产生可辨认信号，只作交叉引用。演练前备份配置，凭据用 `<TOKEN>` 且使用记录归档。
+第 28 章给了故障域隔离的注入清单，这里只做**观测验收**——验证三条链路各自能不能产生可辨认信号。演练前备份配置，凭据用 `<TOKEN>` 且使用记录归档。
 
 ### 注入 1：关掉一个上游
 
@@ -344,7 +343,7 @@ unbound-control -c /etc/unbound/recursor.conf stats_noreset | grep -E 'num.queri
 nft list ruleset | grep -i -E 'counter|mark' | head -20
 ```
 
-**为什么这么设**：单上游失效是本书反复强调的 fail-closed 场景（第 5 章 `forward-first: no`）。验收点不是「会不会 SERVFAIL」，而是**能否把失败定位到出向链路**：① 超时涨、② 出向查询有去无回、③ 看到包出门且 mark 正确，三者齐备才算定位成立。  
+**为什么这么设**：单上游失效是 fail-closed 场景（第 5 章 `forward-first: no`）。验收点不是「会不会 SERVFAIL」，而是**能否把失败定位到出向链路**：① 超时涨、② 出向查询有去无回、③ 看到包出门且 mark 正确，三者齐备才算定位成立。  
 **怎么验证**：注入前后两组 `stats_noreset` 相减，`num.queries_timed_out` 应上升；`nft` 对应规则 packets 差分非零；dnstap 里应能检出应答变长或缺失的 resolver / forwarder 消息。  
 **失败模式 / 回滚点**：多上游时「关一个」未必产生可观测变化（竞速取最快，第 4 章「单上游不是冗余」的含义），演练要在单上游实验实例做。恢复后负缓存可能继续作祟（第 7 章），按控制面 → 权威 → 递归 → 客户端逐层刷，且**链路上每个实例都要刷**。
 
@@ -391,14 +390,14 @@ diff -u /tmp/nft-before.txt /tmp/nft-after.txt || true
 ## 与其他章的交叉引用
 
 - 第 7 章：采集点、`stats_noreset` 纪律、`log-servfail`、dnstap 配置与 **30 天保留期**，本章沿用不重复；第 9 章：`access-control` / `ratelimit` 计数是 unwanted / 限速命中指标来源（官方标 experimental，阈值按基线调）。
-- 第 14、22 章：出向收敛、tproxy mark、`meta skuid` 豁免与「**先看 nftables 规则**」；第 26 章：anycast 集中观测与 per-node 差异落在 `node` / `role` label 与跨主机日志检索，本章只给单机到多节点的接口。
-- 第 28 章：故障域隔离的注入清单，本章只借「注入验收」方法，不重列；第 29 章：唯一 FQDN 数、长 QNAME / 高熵标签、单源 qps 的定义与误报来源，本章负责接进告警；第 30 章：`_acme-challenge` 等记录是证书续期突发查询的合法来源，白名单按名字形态写。
+- 第 14、22 章：出向收敛、tproxy mark、`meta skuid` 豁免；第 26 章：anycast 集中观测与 per-node 差异落在 `node` / `role` label 与跨主机日志检索。
+- 第 28 章：故障域隔离的注入清单；第 29 章：唯一 FQDN 数、长 QNAME / 高熵标签、单源 qps 的定义与误报来源；第 30 章：`_acme-challenge` 等记录是证书续期突发查询的合法来源，白名单按名字形态写。
 
 ## 本章要点
 
-- **三层互补，不靠一层包打天下**：① `stats_noreset` / `log-servfail` 给累积计数与 SERVFAIL 原因；② dnstap 给 QNAME、单源速率、唯一 FQDN 数；③ eBPF / `ss` / `conntrack` / nft counter 给「包有没有出门、被谁发的、mark 走到哪」。第 7 章已给采集点与 30 天保留期，本章只做集成。
+- **三层互补，不靠一层包打天下**：① `stats_noreset` / `log-servfail` 给累积计数与 SERVFAIL 原因；② dnstap 给 QNAME、单源速率、唯一 FQDN 数；③ eBPF / `ss` / `conntrack` / nft counter 给「包有没有出门、被谁发的、mark 走到哪」。采集点见第 7 章。
 - **两条硬边界**：**Unbound 不原生支持 eBPF**，eBPF 是操作系统侧能力、探针名随内核版本变化；**查询日志本身就是全量查询流副本**，接进 Loki / Elasticsearch 后保留期要跟着索引、副本、快照一起对齐 30 天，不把 dnstap 数据无条件推第三方 SaaS。
-- **集成形态是本书归纳**：`unbound_exporter` / stats → Prometheus → Grafana（qps / SERVFAIL 率 / 命中率 / 上游 RTT / 隧道可疑度 + 采集链路健康 + 日志卷余量），dnstap consumer → JSON → Loki / Elasticsearch → 告警，或轻量落文件 + `jq` 巡检；指标名随所选实现而变，只给骨架表达式。
+- 集成形态：`unbound_exporter` / stats → Prometheus → Grafana（qps / SERVFAIL 率 / 命中率 / 上游 RTT / 隧道可疑度 + 采集链路健康 + 日志卷余量），dnstap consumer → JSON → Loki / Elasticsearch → 告警，或轻量落文件 + `jq` 巡检；指标名随所选实现而变，只给骨架表达式。
 - **告警靠基线与白名单治理**：先测 7 天基线再定阈值；八条规则覆盖 SERVFAIL 率连续 5 分钟超阈、单源 qps、唯一 FQDN 数、上游全超时、DNSSEC bogus 突增、dnstap 断流、磁盘将满、采集器无数据；CDN / 健康探测 / 证书续期会产生合法长 QNAME 与突发查询，白名单要窄、要复审、要有审计（呼应第 29 章）。
 - **日志关联的前提是 NTP**：`verbosity` 平时 1、排障临时 2–3 再调回，`log-servfail` 常开；UTC 锚点 + 同源时钟，才能把指标采样、dnstap 事件、nft 计数差分拼成同一条因果链。
 - **验收靠注入，不靠声明**：关一个上游、注一批高熵 QNAME、刷掉 nft counter，逐项确认三条链路都产生可辨认信号且互不受牵连；第 26 章 per-node 集中观测与第 28 章注入清单只作交叉引用。
@@ -414,4 +413,3 @@ diff -u /tmp/nft-before.txt /tmp/nft-after.txt || true
 - Grafana Loki 官方文档（结构化日志侧聚合、保留期与 LogQL）：https://grafana.com/docs/loki/latest/
 - bpftrace 官方参考手册（探针列表、内置变量 `pid` / `uid` / `comm`、内核版本差异）：https://github.com/iovisor/bpftrace/blob/master/docs/reference_guide.md
 
-[RFC 5737]、[RFC 3849]、[RFC 1034] 与 NTP 协议规范按名称在 RFC Editor 检索，完整链接由第四篇统一 RFC 索引章收录；Prometheus / Grafana 的抓取与面板细节、Loki 与 Elasticsearch 的索引保留配置、`unbound_exporter` 之外的 exporter 指标名、bpftrace 在各发行版内核上的可用探针、以及 `num.query.opcode.UPDATE` 等扩展统计字段的准确拼写，均**见官方资料**，本书不作断言。本章所有地址均为教学用示例地址，不含真实公网 IP、域名或 `<TOKEN>` 之外的凭据。

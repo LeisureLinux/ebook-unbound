@@ -2,7 +2,6 @@
 
 一台机器上只跑一个 Unbound 实例时，第 4–6 章的配置都还直观：改配置、restart、看 `dig`。一旦把角色拆开——一个实例做过滤与客户端入口，一个做递归 / 本地根区镜像，一个做加密出口——就会冒出三类新问题：端口与接口怎么划、过滤表大表吃掉多少内存、以及"到底哪一层缓存里有旧数据"。
 
-本章不新增角色，只把前面三章的实例放到同一台主机上，给出规划方法、观测手段与刷缓存的完整路径。实验环境仍是一台家庭网关 + 一台境外云主机，以下为教学用示例地址：IPv4 用 `192.0.2.0/24`、`198.51.100.0/24`、`203.0.113.0/24`（[RFC 5737]），IPv6 用 `2001:db8::/32`（[RFC 3849]），内网写 `192.168.68.0/24`、ULA 写 `fd00::/64`，主机名统一 `gw-01` / `edge-01` / `cloud-01`，不声明是真实环境。所有令牌与凭据一律写 `<TOKEN>` 或 `***`。
 
 ## 同一主机多实例的端口 / 接口规划
 
@@ -23,11 +22,11 @@
 **为什么这么设**（三段配置合起来看）：三实例分别承担入口过滤、递归 / 本地根区镜像、加密出口，因此端口段、`pidfile`、`zonefile` 目录与控制端口必须互不重叠；A 把 B 当作唯一 `forward-addr`，B 有真实出向 53，C 走 853。这三点共同决定了下面三段配置里的每一个端口与路径。
 
 ```yaml
-# 实例 A：客户端入口 + 过滤表，/etc/unbound/filter.conf —— 教学用示例地址
+# 实例 A：客户端入口 + 过滤表，/etc/unbound/filter.conf
 server:
-  interface: 192.168.68.1@53
+  interface: 192.0.2.1@53
   interface: 127.0.0.1@5301
-  access-control: 192.168.68.0/24 allow
+  access-control: 192.0.2.0/24 allow
   access-control: 127.0.0.0/8 allow
   username: unbound
   chroot: ""
@@ -79,7 +78,7 @@ remote-control:
 ```
 
 ```yaml
-# 实例 C：加密出口（示意），/etc/unbound/egress.conf —— 教学用示例地址
+# 实例 C：加密出口（示意），/etc/unbound/egress.conf
 server:
   interface: 127.0.0.1@5303
   access-control: 127.0.0.0/8 allow
@@ -130,14 +129,14 @@ unbound-control -c /etc/unbound/egress.conf status
 第 1 种的写法，把内部域名交给内网权威服务器、其余交给唯一上游：
 
 ```yaml
-# /etc/unbound/filter.conf 的追加片段 —— 教学用示例地址
+# /etc/unbound/filter.conf 的追加片段
 # 需与 7.1 节的 server: 段合并使用：那里已有 do-not-query-localhost: no
 server:
   do-not-query-localhost: no
 
 forward-zone:
   name: "corp.example.net."
-  forward-addr: 192.168.68.53
+  forward-addr: 192.0.2.53
   forward-first: no
 
 forward-zone:
@@ -152,7 +151,7 @@ forward-zone:
 
 | 客户端类别 | 询问地址 | 承担实例 |
 |---|---|---|
-| 普通 LAN 客户端 | `192.168.68.1@53` | A（入口 + 过滤） |
+| 普通 LAN 客户端 | `192.0.2.1@53` | A（入口 + 过滤） |
 | 需要完整递归的排障主机 | `127.0.0.1@5302` | B（递归 + 根镜像） |
 | 只走加密出口的进程 | `127.0.0.1@5303` | C（DoT 出口） |
 | IPv6 / ULA 客户端 | `fd00::1@53` | A（同一实例另一 `interface`） |
@@ -161,22 +160,22 @@ forward-zone:
 
 ```bash
 dig @127.0.0.1 -p 5302 host.corp.example.net A +short
-dig @192.168.68.1 host.corp.example.net A +short
+dig @192.0.2.1 host.corp.example.net A +short
 dig @127.0.0.1 -p 5303 example.org A +short
 unbound-control -c /etc/unbound/filter.conf list_forwards
 ```
 
-**失败模式 / 回滚点**：最常见的错是"配了具体区却忘了默认区"，导致不匹配的名字无路可走；或者反过来，把具体区写成了 `.`，等于没分流。回滚：删掉具体 `forward-zone` 段并 restart，所有查询回落到默认区。还要注意第 6 章讲过的 uid 豁免——B 实例的分流若把出向 53 指向了自己，会形成自问自答的环。
+**失败模式 / 回滚点**：最常见的错是"配了具体区却忘了默认区"，导致不匹配的名字无路可走；或者反过来，把具体区写成了 `.`，等于没分流。回滚：删掉具体 `forward-zone` 段并 restart，所有查询回落到默认区。还要注意 uid 豁免——B 实例的分流若把出向 53 指向了自己，会形成自问自答的环。
 
 ## 过滤表（local-zone 大表）的内存代价与 AppArmor 路径限制
 
 ```yaml
-# /etc/unbound/filter.conf 的追加片段 —— 教学用示例地址
+# /etc/unbound/filter.conf 的追加片段
 server:
   # 过滤表通常通过 include 引入，路径必须在 AppArmor 白名单内
   include: /etc/unbound/filter.d/*.conf
 
-  private-address: 192.168.68.0/24
+  private-address: 192.0.2.0/24
   private-address: 10.0.0.0/8
   private-address: fd00::/8
   private-address: 2001:db8::/32
@@ -184,11 +183,11 @@ server:
 
 **为什么这么设**：`local-zone` 大表是过滤的主流做法——每个要挡的域名一条 `local-zone: "name." always_nxdomain` 或 `refuse`。官方手册允许用 `include` 拆分配置文件，但这里有两个工程约束。
 
-**内存代价**：`local-zone` 条目在启动时全部载入内存，不是按需查磁盘。表越大，常驻内存越高；叠加 `msg-cache-size` / `rrset-cache-size`（第 4 章按 1:2 放大、实际还有 2–2.5 倍 malloc 开销）与每个实例的独立开销，三实例机器上很容易把内存吃满。用 `unbound-control stats_noreset` 里的 `mem.*` 计数器观察，别只盯着 RSS；如果过滤表从十万条涨到百万条，先做一次内存基线再上线。RPZ 是另一种过滤机制（官方手册单列一节），大表场景下可以评估是否比逐条 `local-zone` 更省，但那是另一套配置，不在本章展开。
+**内存代价**：`local-zone` 条目在启动时全部载入内存，不是按需查磁盘。表越大，常驻内存越高；叠加 `msg-cache-size` / `rrset-cache-size`（按 1:2 放大、实际还有 2–2.5 倍 malloc 开销）与每个实例的独立开销，三实例机器上很容易把内存吃满。用 `unbound-control stats_noreset` 里的 `mem.*` 计数器观察，别只盯着 RSS；如果过滤表从十万条涨到百万条，先做一次内存基线再上线。RPZ 是另一种过滤机制（官方手册单列一节），大表场景下可以评估是否比逐条 `local-zone` 更省，但那是另一套配置。
 
 **AppArmor 路径限制**：`include` 的相对路径在 `chroot` / 工作目录内解释，而 AppArmor / SELinux 只允许进程读白名单里的路径。把过滤表放到 `/etc/unbound/filter.d/` 之外的新目录（例如 `/srv/blocklist/`）而不更新 profile，现象是启动失败或表里根本没加载——`unbound-checkconf` 可能照样通过，因为检查的是语法而不是 LSM 放行。第 6 章的根区 `zonefile` 落盘也受同一条限制：路径要同时对 `unbound` uid 可写、在 chroot 内可见、在 AppArmor 白名单内。
 
-`private-address` 与过滤表是两件事：它把指定网段从**公网域名的应答**里剔除，防 DNS Rebinding；官方手册说明它移除 A / AAAA / SVCB / HTTPS 里匹配的资源记录（含 SVCB 的 `ipv4hint` / `ipv6hint` 参数），且启用 DNSSEC 验证时可能把含私有地址的应答标为 bogus。这里把内网段与文档地址段都列上，仅作教学示例。**副作用要提前知道**：若你自己用 `192.168.68.x` 作为内网服务的权威应答，也会被剔除，需要用 `local-zone` / `local-data` 或 `private-domain` 例外处理。
+`private-address` 与过滤表是两件事：它把指定网段从**公网域名的应答**里剔除，防 DNS Rebinding；官方手册说明它移除 A / AAAA / SVCB / HTTPS 里匹配的资源记录（含 SVCB 的 `ipv4hint` / `ipv6hint` 参数），且启用 DNSSEC 验证时可能把含私有地址的应答标为 bogus。这里把内网段与文档地址段都列上，仅作教学示例。**副作用要提前知道**：若你自己用 `192.0.2.x` 作为内网服务的权威应答，也会被剔除，需要用 `local-zone` / `local-data` 或 `private-domain` 例外处理。
 
 **怎么验证**：
 
@@ -196,7 +195,7 @@ server:
 unbound-control -c /etc/unbound/filter.conf list_local_zones | wc -l
 unbound-control -c /etc/unbound/filter.conf stats_noreset | grep -E 'mem\.|total.num.queries'
 aa-status 2>/dev/null | grep -i unbound || true
-dig @192.168.68.1 blocked.example.net A +short
+dig @192.0.2.1 blocked.example.net A +short
 ```
 
 **失败模式 / 回滚点**：`list_local_zones | wc -l` 远小于预期条数，先怀疑 include 通配符没匹配到、或 AppArmor 拒绝读取；`journalctl -k` / `audit.log` 里的 DENIED 是证据。回滚：把过滤表放回白名单内的既有目录，或临时注释掉 `include` 行 restart（过滤失效是预期代价，要同步告知使用方）。
@@ -204,7 +203,7 @@ dig @192.168.68.1 blocked.example.net A +short
 ## DDR 压制与 always_nodata
 
 ```yaml
-# /etc/unbound/filter.conf 的追加片段 —— 教学用示例地址
+# /etc/unbound/filter.conf 的追加片段
 server:
   local-zone: "_dns.resolver.arpa." always_nodata
   local-zone: "use-application-dns.net." always_nxdomain
@@ -221,9 +220,9 @@ server:
 **怎么验证**：
 
 ```bash
-dig @192.168.68.1 _dns.resolver.arpa. SVCB +short
-dig @192.168.68.1 use-application-dns.net A +short
-dig @192.168.68.1 blocked.example.net A
+dig @192.0.2.1 _dns.resolver.arpa. SVCB +short
+dig @192.0.2.1 use-application-dns.net A +short
+dig @192.0.2.1 blocked.example.net A
 ```
 
 第一条应为空且 `status: NOERROR`（NODATA），第二条 `status: NXDOMAIN`，第三条同样 NXDOMAIN。若第一条返回了 SVCB 记录，说明 `local-zone` 没生效或客户端问的是另一个实例。
@@ -232,10 +231,10 @@ dig @192.168.68.1 blocked.example.net A
 
 ## dnstap 全量查询流与 30 天保留期
 
-dnstap 是结构化二进制日志，**记录的是自己的查询流副本**：客户端问了什么、本实例向谁问了什么、回了什么。它对抗"元数据在别处被聚合"很有用，但代价是把同样的元数据集中到自己门口。所以开启全量日志的同时必须写清保留期——**本书统一取 30 天**，并配套轮转与到期删除。
+dnstap 是结构化二进制日志，**记录的是自己的查询流副本**：客户端问了什么、本实例向谁问了什么、回了什么。它对抗"元数据在别处被聚合"很有用，但代价是把同样的元数据集中到自己门口。开启全量日志的同时必须写清保留期并配套轮转与到期删除。
 
 ```yaml
-# /etc/unbound/filter.conf 的追加片段 —— 教学用示例地址
+# /etc/unbound/filter.conf 的追加片段
 dnstap:
   dnstap-enable: yes
   dnstap-socket-path: /run/dnstap.sock
@@ -312,7 +311,7 @@ unbound-control -c /etc/unbound/recursor.conf stats_noreset | grep -E 'total.num
 ```bash
 unbound-control -c /etc/unbound/recursor.conf cache_lookup example.org | head
 unbound-control -c /etc/unbound/recursor.conf lookup example.org | head
-dig @192.168.68.1 example.org A +short
+dig @192.0.2.1 example.org A +short
 ```
 
 `cache_lookup` 刷前后应看到条目消失 / 重建；`lookup` 显示"将会用哪些名字服务器查这个名字"，可用于确认根镜像是否生效。
@@ -351,7 +350,7 @@ server:
 ```bash
 journalctl -u unbound-filter --since '10 min ago' | grep -iE 'servfail|error|prime' | tail -30
 unbound-control -c /etc/unbound/recursor.conf stats_noreset | grep -E 'num.queries_timed_out|num.recursivereplies|num.expired'
-dig @192.168.68.1 example.org A | grep -E 'status:|SERVER:'
+dig @192.0.2.1 example.org A | grep -E 'status:|SERVER:'
 ```
 
 **失败模式 / 回滚点**：只把 `verbosity` 调高而不开 `log-servfail`，会得到大量无关调试行却仍看不清 SERVFAIL 原因。回滚：`verbosity: 1` + 保留 `log-servfail: yes`。`num.queries_timed_out` 持续增长而 `num.recursivereplies` 不涨，基本可以断定是出向链路或上游，不是本机缓存。
@@ -362,7 +361,7 @@ dig @192.168.68.1 example.org A | grep -E 'status:|SERVER:'
 
 ```bash
 #!/bin/sh
-# /usr/local/sbin/unbound-baseline.sh —— 教学用示例地址
+# /usr/local/sbin/unbound-baseline.sh
 # 用法：unbound-baseline.sh <实例配置> <监听地址> [端口]
 set -eu
 CONF=${1:?实例配置}
@@ -409,7 +408,7 @@ rm -f /tmp/ub-cold.$$ /tmp/ub-hot.$$
 **怎么验证**：
 
 ```bash
-unbound-baseline.sh /etc/unbound/filter.conf 192.168.68.1 53
+unbound-baseline.sh /etc/unbound/filter.conf 192.0.2.1 53
 unbound-control -c /etc/unbound/filter.conf stats_noreset | grep -E 'total.num.cachehits|total.num.cachemiss'
 ```
 
@@ -422,7 +421,7 @@ unbound-control -c /etc/unbound/filter.conf stats_noreset | grep -E 'total.num.c
 - 同一主机多实例要独立规划 `interface@port`、`pidfile`、`remote-control` 控制端口与证书、`zonefile` 目录；`interface` 变更只有 restart 生效，`unbound-control -c <配置>` 才能连到指定实例。
 - 按域名分流可用多个 `forward-zone`（最具体区优先，每区仍只留一条 `forward-addr`），或靠不同 `interface` 地址让客户端落到不同实例；后者由 RA / DHCP / 策略路由决定，DNS 侧只负责监听面。
 - `local-zone` 大表全量常驻内存，需与缓存尺寸、malloc 开销一起做基线；`include` 路径与根区 zonefile 都要同时满足 `chroot` 可见、`unbound` uid 可读写、AppArmor 白名单三项。
-- DDR 压制用 `local-zone: "_dns.resolver.arpa." always_nodata`，Firefox canary 域 `use-application-dns.net` 回 NXDOMAIN；按 IP 封 443 是 denylist 不是证明。`private-address` 剔除公网应答里的私有地址防 DNS Rebinding，会误伤内网权威应答。dnstap 六类 `dnstap-log-*-messages` 全开才是全量查询流副本，**本书统一保留 30 天**且必须有到期删除，否则"抗元数据聚合"在自己门口破功。
+- DDR 压制用 `local-zone: "_dns.resolver.arpa." always_nodata`，Firefox canary 域 `use-application-dns.net` 回 NXDOMAIN；按 IP 封 443 是 denylist 不是证明。`private-address` 剔除公网应答里的私有地址防 DNS Rebinding，会误伤内网权威应答。dnstap 六类 `dnstap-log-*-messages` 全开才是全量查询流副本；保留期与到期删除必须显式配置，否则"抗元数据聚合"在自己门口破功。
 - 不开 `unbound-control` 时刷缓存只能重启实例，且链路上每个实例都要刷（负缓存 NXDOMAIN、QMIN strict 兼容坑都属此类）；多实例部署建议开启但把控制接口限制在回环。
 - `log-servfail: yes` 是排障首选，SERVFAIL 按"哪个实例 → 访问控制 → 日志原因 → 缓存旧条目 → nftables 出向豁免 → EDNS/MTU"顺序查；基线用 `stats_noreset` 记录改动前后的命中数、`recursion.time.median` 与 `num.expired`。
 

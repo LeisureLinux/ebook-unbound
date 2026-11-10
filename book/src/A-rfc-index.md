@@ -81,6 +81,7 @@
 | [RFC 6975](https://www.rfc-editor.org/rfc/rfc6975) | Signaling Cryptographic Algorithm Understanding in DNS Security Extensions (DNSSEC) | Jul 2013 | PROPOSED STANDARD | 有效 | DNSSEC / 信任链 |
 | [RFC 7129](https://www.rfc-editor.org/rfc/rfc7129) | Authenticated Denial of Existence in the DNS | Feb 2014 | INFORMATIONAL | 有效 | DNS 基础 / 术语 / 实现 |
 | [RFC 7208](https://www.rfc-editor.org/rfc/rfc7208) | Sender Policy Framework (SPF) for Authorizing Use of Domains in Email, Version 1 | Apr 2014 | PROPOSED STANDARD（有修订） | 有效 | 邮件 / 证书 / 公钥发布 |
+| [RFC 7301](https://www.rfc-editor.org/rfc/rfc7301) | Transport Layer Security (TLS) Application-Layer Protocol Negotiation Extension | Jul 2014 | PROPOSED STANDARD（有修订） | 有效 | 其他 / 网络基础设施 |
 | [RFC 7583](https://www.rfc-editor.org/rfc/rfc7583) | DNSSEC Key Rollover Timing Considerations | Oct 2015 | INFORMATIONAL | 有效 | DNSSEC / 信任链 |
 | [RFC 7672](https://www.rfc-editor.org/rfc/rfc7672) | SMTP Security via Opportunistic DNS-Based Authentication of Named Entities (DANE) Transport Layer Security (TLS) | Oct 2015 | PROPOSED STANDARD | 有效 | 邮件 / 证书 / 公钥发布 |
 | [RFC 7686](https://www.rfc-editor.org/rfc/rfc7686) | The ".onion" Special-Use Domain Name | Oct 2015 | PROPOSED STANDARD | 有效 | 特殊用途域名 |
@@ -113,6 +114,7 @@
 | [RFC 8981](https://www.rfc-editor.org/rfc/rfc8981) | Temporary Address Extensions for Stateless Address Autoconfiguration in IPv6 | Feb 2021 | PROPOSED STANDARD | 有效 | IPv6 / 地址与 RA |
 | [RFC 9076](https://www.rfc-editor.org/rfc/rfc9076) | DNS Privacy Considerations | Jul 2021 | INFORMATIONAL | 有效 | 查询隐私 / 加密传输 |
 | [RFC 9096](https://www.rfc-editor.org/rfc/rfc9096) | Improving the Reaction of Customer Edge Routers to IPv6 Renumbering Events | Aug 2021 | BEST CURRENT PRACTICE | 有效 | IPv6 / 地址与 RA |
+| [RFC 9103](https://www.rfc-editor.org/rfc/rfc9103) | DNS Zone Transfer over TLS | Aug 2021 | PROPOSED STANDARD | 有效 | DNS 基础 / 术语 / 实现 |
 | [RFC 9156](https://www.rfc-editor.org/rfc/rfc9156) | DNS Query Name Minimisation to Improve Privacy | Nov 2021 | PROPOSED STANDARD | 有效 | 查询隐私 / 加密传输 |
 | [RFC 9230](https://www.rfc-editor.org/rfc/rfc9230) | Oblivious DNS over HTTPS | Jun 2022 | EXPERIMENTAL | 有效 | 查询隐私 / 加密传输 |
 | [RFC 9250](https://www.rfc-editor.org/rfc/rfc9250) | DNS over Dedicated QUIC Connections | May 2022 | PROPOSED STANDARD | 有效 | 查询隐私 / 加密传输 |
