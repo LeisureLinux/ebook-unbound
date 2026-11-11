@@ -5,7 +5,7 @@
 | 书名 | DNS的加密和隐私防护——从如何加固 Unbound 说起 |
 | 副标题 | *DNS Encryption and Privacy — Hardening Unbound from the Ground Up* |
 | 作者 | @LeisureLinux |
-| 发布 | 2026 年 11 月，v0.7.1 |
+| 发布 | 2026 年 11 月，v0.7.2 |
 | 正文许可 | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) |
 | 构建脚本许可 | MIT |
 | 出版形态 | 开源中文电子书，PDF / ePub / 独立 HTML 由 Pandoc 从 Markdown 自动构建 |

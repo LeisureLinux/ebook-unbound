@@ -63,6 +63,8 @@ forward-zone:
 
 后果不是"多一份冗余"，而是**过滤表失效**：假设 `192.0.2.53` 是你精心配置、带过滤与审计的上游，`198.51.100.53` 只是顺手加的公共解析器，那么一部分查询会稳定地走后者。客户端看到的过滤结果变成随机——同一个域名，这次被挡、下次放行。更糟的是这种故障很难归因：日志里两条上游都没报错，`forward-first: no` 也确实拦住了递归回退，问题只是"查询根本没送到该去的地方"。
 
+还有一层比过滤表更容易被忽略的代价：**并发竞速意味着同一个 QNAME 会同时送给多家上游**。即便链路都加了密、每家单看都合规，「谁看得见这份查询」也从一家变成了多家，且每家都拿到一份独立的完整查询名与时序。上游数量越多，这份元数据的副本越多；用「波次」也一样——第一波两家并行就已经把查询扩散出去了，第二波再补两家只是把范围进一步扩大。这是**上游隐私与往返延迟之间的直接交换**：并行换低延迟，代价是信任面变宽；串行换单一家可见，代价是失败时的等待。本书的取向是后者——只留一条 `forward-addr`，把可用性与切换交给外部巡检脚本。第 17 章讨论 [RFC 9230] ODoH 的两跳分离时会再回到「参与方越少越好」这个判断。
+
 静默明文降级是同一类问题的另一面：若允许上游超时后退回明文 53 或退回自身递归，整条查询流就在无人察觉的情况下裸奔。所以这里的策略是：**转发器只留一条 `forward-addr`，上游的可用性与切换交给外部巡检脚本**（5.6 节），fail-closed 由 `forward-first: no` 与 `forward-tls-upstream` 共同保证，两波都失败就明确回 SERVFAIL，让故障可见。
 
 **怎么验证**：
@@ -304,3 +306,4 @@ systemctl show unbound -p NRestarts
 - RFC 7858，*Specification for DNS over Transport Layer Security (TLS)*：https://www.rfc-editor.org/rfc/rfc7858
 - RFC 5011，*Automated Updates of DNS Security (DNSSEC) Trust Anchors*：https://www.rfc-editor.org/rfc/rfc5011
 - RFC 8767，*Serving Stale Data to Improve DNS Resiliency*（转发器故障时的兜底语义）：https://www.rfc-editor.org/rfc/rfc8767
+- RFC 9230，*Oblivious DNS over HTTPS*（把查询内容与客户端 IP 拆到不同参与方）：https://www.rfc-editor.org/rfc/rfc9230

@@ -121,15 +121,13 @@ local-zone: "_dns.resolver.arpa." always_nodata</code></pre>
     <li>第 28 章 DNS 故障域隔离 —— 一次全球性中断的复盘，把「官方确认 / 外部观测 / 公开报道 / 本书推论」分列，给出六层隔离。</li>
   </ul>
 
-  <h2>v0.7.1 新增</h2>
+  <h2>v0.7.2 新增</h2>
   <ul>
-    <li>五篇扉页各配一幅科技插图，篇名独占一页；另提供 PDF 封面与微信读书专用版 ePub（两个版本并存）。</li>
-    <li>补正一手出处与概念：FreeBSD 10.0 引入 Unbound、Kaminsky 缓存投毒（VU#800113 / CVE-2008-1447）投毒机理图解、ALPN、DNS Flag Day 2020、AXFR / IXFR、PMTU、priming 信任锚、RRset、SVCB、EDNS(0)、wire format、DDR 的 IPv4/IPv6 适用性、Firefox canary 域。</li>
-    <li>第 6 章扩写 NSD 配置详解（兄弟项目定位、`nsd.conf` 逐项、与 `auth-zone` 对接）。</li>
-    <li>删去重复的示例声明与自我指涉的边界说明；示例地址统一为 RFC 5737 文档段。</li>
+    <li>第 5 章补「并发竞速的上游隐私代价」：多家上游同时看到同一 QNAME，与延迟的取舍。</li>
+    <li>第 37 章把客户端内置 bootstrap DoH IP 与第 13 章的 DoH bypass 并起来讲。</li>
   </ul>
 
-  <h2>许可</h2>
+<h2>许可</h2>
   <p>正文以 <a class="inline" href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a> 发布，
   构建脚本为 MIT。所有示例地址取自 RFC 5737 / RFC 3849 文档段，不指向任何真实服务。</p>
 
