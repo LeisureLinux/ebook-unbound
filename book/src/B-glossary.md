@@ -66,7 +66,7 @@
 | NSEC walking | — | 借 DNSSEC 否认存在记录枚举签名区名字 |
 | NSS | Name Service Switch | `/etc/nsswitch.conf` 决定 getent 先读 hosts 还是 DNS |
 | NXDOMAIN | Non-Existent Domain | 名字不存在的应答码 |
-| ODoH | Oblivious DoH | [RFC 9230]，relay 与 target 分离的两跳加密解析 |
+| ODoH | Oblivious DNS over HTTPS | [RFC 9230]，Experimental / Independent Submission；relay 与 target 分离的两跳加密解析 |
 | OOB | Out-of-Band | 带外管理通道 |
 | PAC | Proxy Auto-Config | `FindProxyForURL()` 脚本，WPAD 找到的目标 |
 | PVD | Provisioning Domain | 网络侧下发配置域的概念 |

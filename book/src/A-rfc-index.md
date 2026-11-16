@@ -116,9 +116,11 @@
 | [RFC 9096](https://www.rfc-editor.org/rfc/rfc9096) | Improving the Reaction of Customer Edge Routers to IPv6 Renumbering Events | Aug 2021 | BEST CURRENT PRACTICE | 有效 | IPv6 / 地址与 RA |
 | [RFC 9103](https://www.rfc-editor.org/rfc/rfc9103) | DNS Zone Transfer over TLS | Aug 2021 | PROPOSED STANDARD | 有效 | DNS 基础 / 术语 / 实现 |
 | [RFC 9156](https://www.rfc-editor.org/rfc/rfc9156) | DNS Query Name Minimisation to Improve Privacy | Nov 2021 | PROPOSED STANDARD | 有效 | 查询隐私 / 加密传输 |
+| [RFC 9180](https://www.rfc-editor.org/rfc/rfc9180) | Hybrid Public Key Encryption | Feb 2022 | INFORMATIONAL | 有效 | 其他 / 网络基础设施 |
 | [RFC 9230](https://www.rfc-editor.org/rfc/rfc9230) | Oblivious DNS over HTTPS | Jun 2022 | EXPERIMENTAL | 有效 | 查询隐私 / 加密传输 |
 | [RFC 9250](https://www.rfc-editor.org/rfc/rfc9250) | DNS over Dedicated QUIC Connections | May 2022 | PROPOSED STANDARD | 有效 | 查询隐私 / 加密传输 |
 | [RFC 9276](https://www.rfc-editor.org/rfc/rfc9276) | Guidance for NSEC3 Parameter Settings | Aug 2022 | BEST CURRENT PRACTICE | 有效 | DNSSEC / 信任链 |
+| [RFC 9458](https://www.rfc-editor.org/rfc/rfc9458) | Oblivious HTTP | Jan 2024 | PROPOSED STANDARD | 有效 | 其他 / 网络基础设施 |
 | [RFC 9460](https://www.rfc-editor.org/rfc/rfc9460) | Service Binding and Parameter Specification via the DNS (SVCB and HTTPS Resource Records) | Nov 2023 | PROPOSED STANDARD | 有效 | DNS 基础 / 术语 / 实现 |
 | [RFC 9462](https://www.rfc-editor.org/rfc/rfc9462) | Discovery of Designated Resolvers | Nov 2023 | PROPOSED STANDARD | 有效 | 服务发现 / 多播 / DDR |
 | [RFC 9665](https://www.rfc-editor.org/rfc/rfc9665) | Service Registration Protocol for DNS-Based Service Discovery | Jun 2025 | PROPOSED STANDARD | 有效 | 服务发现 / 多播 / DDR |

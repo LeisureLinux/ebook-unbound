@@ -161,6 +161,8 @@ DoH 把查询从本地观察者手里交给了端点运营者：端点同时看�
 - **target 见查询不见 IP**：它解密、执行解析、把应答封装回密文经 relay 交回客户端；它看到的是 relay 的 IP，不是原始客户端的。
 - 分离成立的前提是 **relay 与 target 不共谋、不由同一主体控制**，且两者之间不能通过时序、长度、连接复用把请求重新配对；规范也明确这类流量分析不在密码学保护范围内。
 - 与 DoH 一样，只解决存根到 target 这一跳；target 之后向权威服务器的迭代依然按普通 DNS 进行。
+- [RFC 9230] 的作者来自 Apple、Fastly 与 Cloudflare，但走的是 **Independent Submission**：由 RFC Editor 自行决定发表，未经 IETF 背书，状态为 **Experimental**，不是 Standards Track。
+- 客户端加密用 [RFC 9180] 的 HPKE，规范要求 DHKEM(X25519, HKDF-SHA256) / HKDF-SHA256 / AES-128-GCM。[RFC 9458] 的 OHTTP 把同一套 relay + 加密封装从 DNS 泛化到任意 HTTP 消息，是后来的 Proposed Standard；9458 的致谢写明设计基于 [RFC 9230]，9230 的实验概述也把 OHTTP 列为后续方向。时间线是 ODoH（2022，Experimental）在前，OHTTP（2024，Standards Track）在后。
 
 ```text
 [client]
@@ -185,6 +187,8 @@ DoH 把查询从本地观察者手里交给了端点运营者：端点同时看�
 **误读二：relay 看不到查询，所以 relay 可以随意选。** relay 仍看到客户端 IP 与 target 身份，且能通过时序做关联；选一个与 target 有共同运营主体的 relay，等于把两跳合并。
 
 **误读三：ODoH 防流量分析。** 长度、时序、并发模式仍在，[RFC 9230] 并不承诺抗全局被动观察者；填充只能缓解。
+
+**误读四：ODoH 是某个开源项目发明的协议。** 它是有 RFC 编号的公开规范，开源项目只是实现。Experimental 与 Independent Submission 两个标记也说明它尚未进入 IETF 标准流程。
 
 ## 发现与压制：[RFC 9462]
 
@@ -345,7 +349,9 @@ QMIN 的收益要放在正确的对手模型下衡量。它把完整 QNAME 从�
 - RFC Editor，[RFC 8484] *DNS Queries over HTTPS (DoH)*：https://www.rfc-editor.org/rfc/rfc8484.txt
 - RFC Editor，[RFC 9250] *DNS over Dedicated QUIC Connections*：https://www.rfc-editor.org/rfc/rfc9250.txt
 - RFC Editor，[RFC 8310] *Usage Profiles for DNS over TLS and DNS over DTLS*：https://www.rfc-editor.org/rfc/rfc8310.txt
-- RFC Editor，[RFC 9230] *Oblivious DNS over HTTPS*：https://www.rfc-editor.org/rfc/rfc9230.txt
+- RFC Editor，[RFC 9230] *Oblivious DNS over HTTPS*（Independent Submission / Experimental，状态见 Info 页）：https://www.rfc-editor.org/rfc/rfc9230.txt
+- RFC Editor，[RFC 9180] *Hybrid Public Key Encryption*：https://www.rfc-editor.org/rfc/rfc9180.txt
+- RFC Editor，[RFC 9458] *Oblivious HTTP*（Proposed Standard，基于 ODoH 泛化）：https://www.rfc-editor.org/rfc/rfc9458.txt
 - RFC Editor，[RFC 9462] *Discovery of Designated Resolvers*：https://www.rfc-editor.org/rfc/rfc9462.txt
 
 其余 [RFC 8932]、[RFC 7871]、[RFC 9076]，以及章内引用的 [RFC 8020]、[RFC 2308]、[RFC 6761]、[RFC 5737] 等原文，均在 RFC Editor 按编号索引；完整链接由第四篇的统一 RFC 索引章收录。
